@@ -1,37 +1,51 @@
 # Personal Trainer App — Claude Code Context
 
 ## Project Overview
-iOS-first personal training app built with SwiftUI and Supabase. Android is planned for later.
+PWA (Progressive Web App) personal training app. Works on iOS, Android, and desktop from a single codebase. No App Store required — install via browser "Add to Home Screen".
 
 ## Tech Stack
-- **iOS:** Swift 5.9+, SwiftUI, iOS 16+
+- **Frontend:** Next.js 14 (App Router), TypeScript, Tailwind CSS
 - **Backend:** Supabase (PostgreSQL + Auth + Storage + Realtime)
-- **Charts:** Swift Charts (native iOS 16+)
-- **Architecture:** MVVM + Repository pattern
-- **Package manager:** Swift Package Manager (SPM)
+- **Charts:** Recharts or Chart.js
+- **PWA:** next-pwa (service worker, offline support, installable)
+- **State:** Zustand or React Query (TanStack)
+- **Forms:** React Hook Form + Zod
 
 ## Project Structure (target)
 ```
-PersonalTrainer/
-├── App/
-│   └── PersonalTrainerApp.swift
-├── Core/
-│   ├── Supabase/         # Supabase client singleton
-│   ├── Auth/             # Auth state, login/signup flows
-│   └── Extensions/       # Swift/SwiftUI extensions
-├── Features/
-│   ├── Dashboard/        # Home screen
-│   ├── ExerciseLibrary/  # Browse & search exercises
-│   ├── WorkoutBuilder/   # Create & log workouts
-│   ├── Calendar/         # Schedule & view sessions
-│   ├── DailyLog/         # Daily weight + exercise log
-│   ├── RunningPlans/     # 5K → marathon training plans
-│   ├── PlanGenerator/    # AI-style plan generation by equipment
-│   ├── Progress/         # Charts & analytics
-│   └── Clients/          # Trainer: manage clients
-├── Models/               # Shared data models (Codable)
-├── Repositories/         # Data layer (Supabase calls)
-└── Resources/            # Assets, localization
+app/
+├── (auth)/
+│   ├── login/
+│   └── signup/
+├── (app)/
+│   ├── dashboard/
+│   ├── exercises/          # Exercise library
+│   ├── workouts/           # Workout builder & log
+│   ├── calendar/           # Schedule sessions
+│   ├── log/                # Daily log (weight + exercises)
+│   ├── running/            # Running plans & log
+│   ├── plan-generator/     # Generate plan by equipment
+│   ├── progress/           # Charts & analytics
+│   └── clients/            # Trainer: manage clients
+├── api/                    # API routes (server actions)
+└── layout.tsx
+
+components/
+├── ui/                     # Shared UI components
+├── exercises/
+├── workouts/
+├── calendar/
+├── charts/
+└── body-map/               # SVG muscle group visualizer
+
+lib/
+├── supabase/               # Supabase client (browser + server)
+├── hooks/                  # Custom React hooks
+└── utils/
+
+public/
+├── manifest.json           # PWA manifest
+└── icons/                  # App icons (all sizes)
 ```
 
 ## Database Schema (Supabase)
@@ -69,7 +83,7 @@ trainer_clients (trainer_id uuid, client_id uuid, assigned_at timestamptz)
 ## Feature Roadmap (GitHub Issues)
 | # | Feature | Priority |
 |---|---------|----------|
-| #1 | iOS app scaffold: SwiftUI + Supabase + auth | 🔴 P0 |
+| #1 | PWA scaffold: Next.js + Supabase + auth | 🔴 P0 |
 | #2 | Exercise library | 🔴 P0 |
 | #3 | Workout builder & tracking | 🔴 P0 |
 | #7 | Calendario de entrenamientos | 🟠 P1 |
@@ -78,30 +92,42 @@ trainer_clients (trainer_id uuid, client_id uuid, assigned_at timestamptz)
 | #10 | Planes de running por distancia | 🟠 P1 |
 | #5 | Progress tracking & analytics | 🟡 P2 |
 | #4 | Client management (trainer view) | 🟡 P2 |
-| #6 | Android implementation | ⚪ P3 |
+| #6 | Android (native) — optional future | ⚪ P3 |
 
 ## UX Notes
-- Muscle group visualization: SVG body map that highlights targeted muscles per exercise
-- Equipment profiles: users can save multiple profiles (Home, Gym, Traveling)
+- Muscle group visualization: SVG body map highlighting targeted muscles per exercise
+- Equipment profiles: users save multiple profiles (Home, Gym, Traveling)
 - Running log: distance, time, pace (min/km), RPE (1-10)
+- Mobile-first design — optimized for phone use in the gym
+- Dark mode support from day 1
 
 ## Development Rules
-- **Always use MVVM:** Views own no business logic
-- **Repository pattern:** All Supabase calls go through a Repository class, never directly from ViewModels
-- **DRY_RUN mode not applicable here** — but use Supabase local dev for testing when possible
-- **No hardcoded strings:** Use LocalizedStringKey / Localizable.strings from day 1
-- **Accessibility:** VoiceOver labels on all interactive elements
-- **Dark mode:** Support from day 1
+- **TypeScript strict mode** always
+- **Server Components by default** — use `"use client"` only when needed
+- **Supabase calls** go through `lib/supabase/` helpers, never raw in components
+- **No hardcoded strings** — i18n-ready from day 1 (en/es)
+- **Responsive:** mobile-first, works on tablet/desktop too
 
-## Key Dependencies (SPM)
-```swift
-// Package.swift dependencies
-.package(url: "https://github.com/supabase-community/supabase-swift", from: "2.0.0")
+## Key Dependencies
+```json
+{
+  "@supabase/supabase-js": "^2",
+  "@supabase/ssr": "^0",
+  "next-pwa": "^5",
+  "recharts": "^2",
+  "react-hook-form": "^7",
+  "zod": "^3",
+  "zustand": "^4",
+  "tailwindcss": "^3"
+}
 ```
 
-## Supabase Config
-- Project URL and anon key → store in `Config.xcconfig` (gitignored)
-- Never hardcode keys in source
+## Environment Variables
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+```
 
 ## GitHub
 - Repo: https://github.com/mauricepruna/personal-trainer-app (private)
