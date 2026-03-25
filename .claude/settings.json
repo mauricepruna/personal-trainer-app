@@ -1,20 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(swift:*)",
-      "Bash(xcodebuild:*)",
+      "Bash(node:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
       "Bash(git:*)",
       "Bash(gh:*)",
-      "Bash(cat:*)",
       "Bash(ls:*)",
       "Bash(mkdir:*)",
       "Bash(cp:*)",
       "Bash(mv:*)",
-      "Bash(rm:*)",
-      "Bash(find:*)",
-      "Bash(grep:*)",
-      "Bash(echo:*)",
-      "Bash(touch:*)"
+      "Bash(rm:*)"
     ],
     "deny": []
   }
