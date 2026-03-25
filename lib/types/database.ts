@@ -82,6 +82,18 @@ export interface Session {
   notes: string | null;
 }
 
+export interface Profile {
+  id: string;
+  name: string | null;
+  email: string | null;
+  role: "user" | "trainer";
+  created_at: string;
+}
+
+export interface TrainerClient extends Profile {
+  assigned_at: string;
+}
+
 export interface ExerciseLog {
   id: string;
   user_id: string;

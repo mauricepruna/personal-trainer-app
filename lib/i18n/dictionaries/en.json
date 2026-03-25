@@ -41,7 +41,8 @@
     "progress": "Progress",
     "log": "Daily Log",
     "planGenerator": "Plan Generator",
-    "running": "Running"
+    "running": "Running",
+    "clients": "Clients"
   },
   "exercises": {
     "title": "Exercise Library",
@@ -115,6 +116,33 @@
     "noEntries": "No entries for this date",
     "weightLogged": "Weight logged",
     "exerciseLogged": "Exercise logged"
+  },
+  "clients": {
+    "title": "My Clients",
+    "addClient": "Add Client",
+    "clientEmail": "Client email",
+    "noClients": "No clients yet. Add a client by their email address.",
+    "removeConfirm": "Remove this client?",
+    "notTrainer": "This section is for trainers only.",
+    "clientNotFound": "No account found with that email.",
+    "alreadyAdded": "This client is already in your list.",
+    "addError": "Could not add client. Please try again."
+  },
+  "progress": {
+    "title": "Progress",
+    "weightTrend": "Body Weight Trend",
+    "weeklyWorkouts": "Workouts per Week",
+    "weeklyKm": "Weekly Running (km)",
+    "noWeightData": "No weight data yet. Start logging in Daily Log.",
+    "noWorkoutData": "No completed workouts yet.",
+    "noRunData": "No runs logged yet.",
+    "last90Days": "Last 90 days",
+    "last12Weeks": "Last 12 weeks",
+    "totalRuns": "Total Runs",
+    "totalKm": "Total km",
+    "avgPace": "Avg Pace",
+    "completedWorkouts": "Completed Workouts",
+    "thisMonth": "This month"
   },
   "planGenerator": {
     "title": "Plan Generator",

@@ -41,7 +41,8 @@
     "progress": "Progreso",
     "log": "Registro Diario",
     "planGenerator": "Generador",
-    "running": "Running"
+    "running": "Running",
+    "clients": "Clientes"
   },
   "exercises": {
     "title": "Biblioteca de Ejercicios",
@@ -115,6 +116,33 @@
     "noEntries": "No hay entradas para esta fecha",
     "weightLogged": "Peso registrado",
     "exerciseLogged": "Ejercicio registrado"
+  },
+  "clients": {
+    "title": "Mis Clientes",
+    "addClient": "Agregar Cliente",
+    "clientEmail": "Email del cliente",
+    "noClients": "Sin clientes aún. Agrega un cliente por su email.",
+    "removeConfirm": "¿Eliminar este cliente?",
+    "notTrainer": "Esta sección es solo para entrenadores.",
+    "clientNotFound": "No se encontró una cuenta con ese email.",
+    "alreadyAdded": "Este cliente ya está en tu lista.",
+    "addError": "No se pudo agregar el cliente. Intenta de nuevo."
+  },
+  "progress": {
+    "title": "Progreso",
+    "weightTrend": "Tendencia de Peso Corporal",
+    "weeklyWorkouts": "Entrenamientos por Semana",
+    "weeklyKm": "Running Semanal (km)",
+    "noWeightData": "Sin datos de peso. Comienza a registrar en el Registro Diario.",
+    "noWorkoutData": "Sin entrenamientos completados aún.",
+    "noRunData": "Sin carreras registradas aún.",
+    "last90Days": "Últimos 90 días",
+    "last12Weeks": "Últimas 12 semanas",
+    "totalRuns": "Carreras Totales",
+    "totalKm": "km Totales",
+    "avgPace": "Ritmo Promedio",
+    "completedWorkouts": "Entrenamientos Completados",
+    "thisMonth": "Este mes"
   },
   "planGenerator": {
     "title": "Generador de Planes",
