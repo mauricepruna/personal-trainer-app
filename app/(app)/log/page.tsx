@@ -1,25 +1,32 @@
-import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/auth/session";
+import { getWeightLog, getExerciseLog } from "@/lib/db/queries/log";
+import { getExercises } from "@/lib/db/queries/exercises";
 import { DailyLog } from "@/components/log/daily-log";
+import { redirect } from "next/navigation";
 
-export default async function LogPage() {
-  const supabase = createClient();
+export default async function LogPage({
+  searchParams,
+}: {
+  searchParams: { date?: string };
+}) {
+  const session = await getSession();
+  if (!session) redirect("/login");
+
   const today = new Date().toISOString().split("T")[0];
+  const date = searchParams.date ?? today;
 
-  const [exercisesResult, weightResult, exerciseLogResult] = await Promise.all([
-    supabase.from("exercises").select("*").order("name"),
-    supabase.from("weight_log").select("*").eq("date", today),
-    supabase
-      .from("exercise_log")
-      .select("*, exercise:exercises(name)")
-      .eq("date", today),
+  const [exercises, weightLogs, exerciseLogs] = await Promise.all([
+    getExercises(session.userId),
+    getWeightLog(session.userId, date),
+    getExerciseLog(session.userId, date),
   ]);
 
   return (
     <DailyLog
-      exercises={exercisesResult.data ?? []}
-      initialWeightLogs={weightResult.data ?? []}
-      initialExerciseLogs={exerciseLogResult.data ?? []}
-      initialDate={today}
+      exercises={exercises}
+      initialWeightLogs={weightLogs}
+      initialExerciseLogs={exerciseLogs}
+      initialDate={date}
     />
   );
 }

@@ -1,35 +1,32 @@
-import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/auth/session";
+import { getWeightTrend, getWeeklyWorkouts, getCompletedWorkoutsCount, getWeeklyRunning, getRunStats } from "@/lib/db/queries/progress";
 import { ProgressCharts } from "@/components/charts/progress-charts";
+import { redirect } from "next/navigation";
 
 export default async function ProgressPage() {
-  const supabase = createClient();
+  const session = await getSession();
+  if (!session) redirect("/login");
+
   const since90 = new Date();
   since90.setDate(since90.getDate() - 90);
   const since90Str = since90.toISOString().split("T")[0];
 
-  const [weightResult, runResult, sessionsResult] = await Promise.all([
-    supabase
-      .from("weight_log")
-      .select("date, weight_kg")
-      .gte("date", since90Str)
-      .order("date"),
-    supabase
-      .from("running_log")
-      .select("date, distance_km, duration_sec, pace_min_km")
-      .gte("date", since90Str)
-      .order("date"),
-    supabase
-      .from("sessions")
-      .select("completed_at")
-      .not("completed_at", "is", null)
-      .gte("completed_at", since90.toISOString()),
+  const [weightLogs, weeklyWorkouts, runStats, weeklyRunning] = await Promise.all([
+    getWeightTrend(session.userId, since90Str),
+    getWeeklyWorkouts(session.userId, since90Str),
+    getRunStats(session.userId, since90Str),
+    getWeeklyRunning(session.userId, since90Str),
   ]);
+
+  const completedCount = await getCompletedWorkoutsCount(session.userId, since90Str);
 
   return (
     <ProgressCharts
-      weightLogs={weightResult.data ?? []}
-      runLogs={runResult.data ?? []}
-      completedSessions={(sessionsResult.data ?? []) as { completed_at: string }[]}
+      weightLogs={weightLogs}
+      weeklyWorkouts={weeklyWorkouts}
+      runStats={runStats}
+      weeklyRunning={weeklyRunning}
+      completedWorkouts={completedCount}
     />
   );
 }

@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useTranslation } from "@/lib/i18n/context";
-import type { TrainerClient } from "@/lib/types/database";
+import { addClientAction, removeClientAction } from "@/lib/actions/clients";
+import type { Client } from "@/lib/db/queries/clients";
 import { Button } from "@/components/ui/button";
 
 interface ClientsViewProps {
-  initialClients: TrainerClient[];
+  initialClients: Client[];
 }
 
 export function ClientsView({ initialClients }: ClientsViewProps) {
@@ -22,28 +23,19 @@ export function ClientsView({ initialClients }: ClientsViewProps) {
     setAdding(true);
     setError(null);
     try {
-      const res = await fetch("/api/clients", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-      const json = await res.json();
-
-      if (!res.ok) {
-        if (json.error === "not_found") setError(t.clients.clientNotFound);
-        else setError(t.clients.addError);
+      const formData = new FormData();
+      formData.set("email", email.trim());
+      const result = await addClientAction(formData);
+      if (result?.error) {
+        setError(result.error);
         return;
       }
-
-      const existing = clients.find((c) => c.id === json.client.id);
-      if (existing) {
-        setError(t.clients.alreadyAdded);
-        return;
-      }
-
-      setClients((prev) => [...prev, json.client as TrainerClient]);
       setEmail("");
       setShowForm(false);
+      // Refresh via router is not needed here — server action called revalidatePath
+      // The new client will appear on next navigation. For optimistic UX we'd need the returned data,
+      // but addClientAction redirects on success. Instead just reload:
+      window.location.reload();
     } finally {
       setAdding(false);
     }
@@ -51,12 +43,8 @@ export function ClientsView({ initialClients }: ClientsViewProps) {
 
   async function handleRemove(clientId: string) {
     if (!confirm(t.clients.removeConfirm)) return;
-    await fetch("/api/clients", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientId }),
-    });
-    setClients((prev) => prev.filter((c) => c.id !== clientId));
+    await removeClientAction(clientId);
+    setClients((prev) => prev.filter((c) => c.client_id !== clientId));
   }
 
   return (
@@ -101,23 +89,18 @@ export function ClientsView({ initialClients }: ClientsViewProps) {
         <div className="space-y-2">
           {clients.map((client) => (
             <div
-              key={client.id}
+              key={client.client_id}
               className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900"
             >
               <div>
-                <p className="font-medium text-gray-900 dark:text-white">
-                  {client.name ?? client.email ?? client.id}
-                </p>
-                {client.name && client.email && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{client.email}</p>
-                )}
+                <p className="font-medium text-gray-900 dark:text-white">{client.name}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{client.email}</p>
                 <p className="text-xs text-gray-400">
-                  {t.common.add}{" "}
-                  {new Date(client.assigned_at).toLocaleDateString()}
+                  Added {new Date(client.assigned_at).toLocaleDateString()}
                 </p>
               </div>
               <button
-                onClick={() => handleRemove(client.id)}
+                onClick={() => handleRemove(client.client_id)}
                 className="rounded p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
                 title={t.clients.removeConfirm}
               >

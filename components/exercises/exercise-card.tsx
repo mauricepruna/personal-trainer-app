@@ -1,11 +1,12 @@
 "use client";
 
 import { useTranslation } from "@/lib/i18n/context";
-import type { ExerciseWithEquipment, MuscleGroup } from "@/lib/types/database";
+import type { Exercise } from "@/lib/db/queries/exercises";
+import type { MuscleGroup } from "@/lib/types/database";
 
 interface ExerciseCardProps {
-  exercise: ExerciseWithEquipment;
-  onEdit: (exercise: ExerciseWithEquipment) => void;
+  exercise: Exercise;
+  onEdit: (exercise: Exercise) => void;
   onDelete: (id: string) => void;
 }
 
@@ -19,9 +20,9 @@ export function ExerciseCard({ exercise, onEdit, onDelete }: ExerciseCardProps) 
           <h3 className="font-semibold text-gray-900 dark:text-white">
             {exercise.name}
           </h3>
-          {exercise.equipment && (
+          {exercise.equipment_name && (
             <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-              {exercise.equipment.name}
+              {exercise.equipment_name}
             </p>
           )}
         </div>

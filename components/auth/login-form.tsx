@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/client";
+import { loginAction } from "@/lib/auth/actions";
 import { useTranslation } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +19,6 @@ const loginSchema = z.object({
 type LoginValues = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
-  const router = useRouter();
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
 
@@ -34,19 +32,11 @@ export function LoginForm() {
 
   async function onSubmit(data: LoginValues) {
     setError(null);
-    const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
-    });
-
-    if (authError) {
-      setError(t.auth.loginError);
-      return;
-    }
-
-    router.push("/dashboard");
-    router.refresh();
+    const formData = new FormData();
+    formData.set("email", data.email);
+    formData.set("password", data.password);
+    const result = await loginAction(formData);
+    if (result?.error) setError(result.error);
   }
 
   return (

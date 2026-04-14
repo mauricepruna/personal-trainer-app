@@ -2,29 +2,26 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/context";
-import { createClient } from "@/lib/supabase/client";
-import type { WorkoutWithExercises } from "@/lib/types/database";
+import { deleteWorkoutAction } from "@/lib/actions/workouts";
+import type { Workout } from "@/lib/db/queries/workouts";
+import type { Exercise } from "@/lib/db/queries/exercises";
 import { WorkoutCard } from "./workout-card";
 import { Button } from "@/components/ui/button";
 
 interface WorkoutListProps {
-  initialWorkouts: WorkoutWithExercises[];
+  initialWorkouts: Workout[];
+  exercises: Exercise[];
 }
 
 export function WorkoutList({ initialWorkouts }: WorkoutListProps) {
   const { t } = useTranslation();
-  const router = useRouter();
   const [workouts, setWorkouts] = useState(initialWorkouts);
 
   async function handleDelete(id: string) {
     if (!confirm(t.workouts.deleteConfirm)) return;
-    const supabase = createClient();
-    await supabase.from("workout_exercises").delete().eq("workout_id", id);
-    await supabase.from("workouts").delete().eq("id", id);
+    await deleteWorkoutAction(id);
     setWorkouts((prev) => prev.filter((w) => w.id !== id));
-    router.refresh();
   }
 
   return (

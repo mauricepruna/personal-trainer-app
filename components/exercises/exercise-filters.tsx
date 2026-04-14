@@ -1,13 +1,18 @@
 "use client";
 
 import { useTranslation } from "@/lib/i18n/context";
-import { MUSCLE_GROUPS, type MuscleGroup, type EquipmentType } from "@/lib/types/database";
+import { MUSCLE_GROUPS, type MuscleGroup } from "@/lib/types/database";
+
+interface EquipmentOption {
+  id: string;
+  name: string;
+}
 
 interface ExerciseFiltersProps {
   muscleFilter: MuscleGroup | "";
   equipmentFilter: string;
   searchQuery: string;
-  equipment: EquipmentType[];
+  equipment: EquipmentOption[];
   onMuscleChange: (value: MuscleGroup | "") => void;
   onEquipmentChange: (value: string) => void;
   onSearchChange: (value: string) => void;

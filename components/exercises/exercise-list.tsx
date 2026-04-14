@@ -3,16 +3,23 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/context";
-import { createClient } from "@/lib/supabase/client";
-import type { ExerciseWithEquipment, EquipmentType, MuscleGroup } from "@/lib/types/database";
+import { createExerciseAction, updateExerciseAction, deleteExerciseAction } from "@/lib/actions/exercises";
+import type { Exercise } from "@/lib/db/queries/exercises";
+import type { MuscleGroup } from "@/lib/types/database";
 import { ExerciseFilters } from "./exercise-filters";
 import { ExerciseCard } from "./exercise-card";
 import { ExerciseForm, type ExerciseFormValues } from "./exercise-form";
 import { Button } from "@/components/ui/button";
 
+interface EquipmentOption {
+  id: string;
+  name: string;
+  icon: string | null;
+}
+
 interface ExerciseListProps {
-  initialExercises: ExerciseWithEquipment[];
-  equipment: EquipmentType[];
+  initialExercises: Exercise[];
+  equipment: EquipmentOption[];
 }
 
 export function ExerciseList({ initialExercises, equipment }: ExerciseListProps) {
@@ -23,7 +30,7 @@ export function ExerciseList({ initialExercises, equipment }: ExerciseListProps)
   const [muscleFilter, setMuscleFilter] = useState<MuscleGroup | "">("");
   const [equipmentFilter, setEquipmentFilter] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [editingExercise, setEditingExercise] = useState<ExerciseWithEquipment | null>(null);
+  const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
 
   const filtered = useMemo(() => {
     return exercises.filter((ex) => {
@@ -41,54 +48,35 @@ export function ExerciseList({ initialExercises, equipment }: ExerciseListProps)
   }, [exercises, searchQuery, muscleFilter, equipmentFilter]);
 
   async function handleCreate(data: ExerciseFormValues) {
-    const supabase = createClient();
-    const { data: newExercise, error } = await supabase
-      .from("exercises")
-      .insert({
-        name: data.name,
-        muscle_groups: data.muscle_groups,
-        equipment_id: data.equipment_id || null,
-        instructions: data.instructions || null,
-        video_url: data.video_url || null,
-      })
-      .select("*, equipment:equipment_types(*)")
-      .single();
-
-    if (error) throw error;
-    setExercises((prev) => [...prev, newExercise]);
-    setShowForm(false);
+    const formData = new FormData();
+    formData.set("name", data.name);
+    data.muscle_groups.forEach((mg) => formData.append("muscle_groups", mg));
+    if (data.equipment_id) formData.set("equipment_id", data.equipment_id);
+    if (data.instructions) formData.set("instructions", data.instructions);
+    if (data.video_url) formData.set("video_url", data.video_url);
+    await createExerciseAction(formData);
     router.refresh();
+    setShowForm(false);
   }
 
   async function handleUpdate(data: ExerciseFormValues) {
     if (!editingExercise) return;
-    const supabase = createClient();
-    const { data: updated, error } = await supabase
-      .from("exercises")
-      .update({
-        name: data.name,
-        muscle_groups: data.muscle_groups,
-        equipment_id: data.equipment_id || null,
-        instructions: data.instructions || null,
-        video_url: data.video_url || null,
-      })
-      .eq("id", editingExercise.id)
-      .select("*, equipment:equipment_types(*)")
-      .single();
-
-    if (error) throw error;
-    setExercises((prev) => prev.map((ex) => (ex.id === updated.id ? updated : ex)));
-    setEditingExercise(null);
+    const formData = new FormData();
+    formData.set("id", editingExercise.id);
+    formData.set("name", data.name);
+    data.muscle_groups.forEach((mg) => formData.append("muscle_groups", mg));
+    if (data.equipment_id) formData.set("equipment_id", data.equipment_id);
+    if (data.instructions) formData.set("instructions", data.instructions);
+    if (data.video_url) formData.set("video_url", data.video_url);
+    await updateExerciseAction(formData);
     router.refresh();
+    setEditingExercise(null);
   }
 
   async function handleDelete(id: string) {
     if (!confirm(t.exercises.deleteConfirm)) return;
-    const supabase = createClient();
-    const { error } = await supabase.from("exercises").delete().eq("id", id);
-    if (error) throw error;
+    await deleteExerciseAction(id);
     setExercises((prev) => prev.filter((ex) => ex.id !== id));
-    router.refresh();
   }
 
   if (showForm || editingExercise) {

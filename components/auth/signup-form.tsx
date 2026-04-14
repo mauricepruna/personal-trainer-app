@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/client";
+import { signupAction } from "@/lib/auth/actions";
 import { useTranslation } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,6 @@ type SignupValues = z.infer<typeof signupSchema>;
 export function SignupForm() {
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
 
   const {
     register,
@@ -39,34 +38,11 @@ export function SignupForm() {
 
   async function onSubmit(data: SignupValues) {
     setError(null);
-    const supabase = createClient();
-    const { error: authError } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.password,
-    });
-
-    if (authError) {
-      setError(t.auth.signupError);
-      return;
-    }
-
-    setSuccess(true);
-  }
-
-  if (success) {
-    return (
-      <Card className="w-full max-w-sm">
-        <p className="text-center text-gray-700 dark:text-gray-300">
-          {t.auth.signupSuccess}
-        </p>
-        <Link
-          href="/login"
-          className="mt-4 block text-center text-blue-600 hover:underline dark:text-blue-400"
-        >
-          {t.auth.login}
-        </Link>
-      </Card>
-    );
+    const formData = new FormData();
+    formData.set("email", data.email);
+    formData.set("password", data.password);
+    const result = await signupAction(formData);
+    if (result?.error) setError(result.error);
   }
 
   return (

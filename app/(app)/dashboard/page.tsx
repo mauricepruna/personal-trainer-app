@@ -1,8 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/auth/session";
 
 export default async function DashboardPage() {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSession();
 
   return (
     <div>
@@ -10,7 +9,7 @@ export default async function DashboardPage() {
         Dashboard
       </h1>
       <p className="mt-2 text-gray-600 dark:text-gray-400">
-        Welcome back, {user?.email}
+        Welcome back, {session?.email}
       </p>
     </div>
   );

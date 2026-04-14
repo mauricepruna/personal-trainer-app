@@ -1,18 +1,17 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/auth/session";
+import { getDb } from "@/lib/db";
+import { getClients } from "@/lib/db/queries/clients";
 import { ClientsView } from "@/components/clients/clients-view";
-import type { TrainerClient } from "@/lib/types/database";
+import { redirect } from "next/navigation";
 
 export default async function ClientsPage() {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const session = await getSession();
+  if (!session) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+  const db = getDb();
+  const profile = db
+    .prepare("SELECT role FROM profiles WHERE id = ?")
+    .get(session.userId) as { role: string } | undefined;
 
   if (profile?.role !== "trainer") {
     return (
@@ -22,16 +21,6 @@ export default async function ClientsPage() {
     );
   }
 
-  const { data: links } = await supabase
-    .from("trainer_clients")
-    .select("client_id, assigned_at, client:profiles!client_id(id, name, email, role, created_at)")
-    .eq("trainer_id", user.id)
-    .order("assigned_at", { ascending: false });
-
-  const clients: TrainerClient[] = (links ?? []).map((link) => {
-    const client = link.client as unknown as Omit<TrainerClient, "assigned_at">;
-    return { ...client, assigned_at: link.assigned_at };
-  });
-
+  const clients = getClients(session.userId);
   return <ClientsView initialClients={clients} />;
 }

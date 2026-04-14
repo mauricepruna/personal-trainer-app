@@ -1,22 +1,16 @@
-import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/auth/session";
+import { getRunningPlans, getRunLogs } from "@/lib/db/queries/running";
 import { RunningView } from "@/components/running/running-view";
+import { redirect } from "next/navigation";
 
 export default async function RunningPage() {
-  const supabase = createClient();
+  const session = await getSession();
+  if (!session) redirect("/login");
 
-  const [plansResult, logsResult] = await Promise.all([
-    supabase.from("running_plans").select("*").order("name"),
-    supabase
-      .from("running_log")
-      .select("*")
-      .order("date", { ascending: false })
-      .limit(50),
+  const [plans, runLogs] = await Promise.all([
+    getRunningPlans(),
+    getRunLogs(session.userId),
   ]);
 
-  return (
-    <RunningView
-      plans={plansResult.data ?? []}
-      runLogs={logsResult.data ?? []}
-    />
-  );
+  return <RunningView plans={plans} runLogs={runLogs} />;
 }

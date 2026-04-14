@@ -44,3 +44,8 @@ public/workbox-*.js.map
 
 
 .env.local
+
+# SQLite database
+/data/
+
+/docs/

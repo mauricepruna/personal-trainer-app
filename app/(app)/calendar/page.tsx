@@ -1,27 +1,20 @@
-import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/auth/session";
+import { getSessionsForMonth } from "@/lib/db/queries/calendar";
+import { getWorkouts } from "@/lib/db/queries/workouts";
 import { CalendarView } from "@/components/calendar/calendar-view";
+import { redirect } from "next/navigation";
 
 export default async function CalendarPage() {
-  const supabase = createClient();
+  const session = await getSession();
+  if (!session) redirect("/login");
 
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString();
-
-  const [sessionsResult, workoutsResult] = await Promise.all([
-    supabase
-      .from("sessions")
-      .select("*, workout:workouts(name)")
-      .gte("scheduled_at", startOfMonth)
-      .lte("scheduled_at", endOfMonth)
-      .order("scheduled_at"),
-    supabase.from("workouts").select("id, name").order("name"),
+  const [sessions, workouts] = await Promise.all([
+    getSessionsForMonth(session.userId, now.getFullYear(), now.getMonth() + 1),
+    getWorkouts(session.userId),
   ]);
 
-  return (
-    <CalendarView
-      initialSessions={sessionsResult.data ?? []}
-      workouts={workoutsResult.data ?? []}
-    />
-  );
+  const workoutOptions = workouts.map((w) => ({ id: w.id, name: w.name }));
+
+  return <CalendarView initialSessions={sessions} workouts={workoutOptions} />;
 }

@@ -3,15 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/context";
-import { createClient } from "@/lib/supabase/client";
-import type { Exercise, WorkoutExerciseWithDetails } from "@/lib/types/database";
+import { createWorkoutAction, updateWorkoutAction } from "@/lib/actions/workouts";
+import type { Exercise } from "@/lib/db/queries/exercises";
+import type { WorkoutExercise } from "@/lib/db/queries/workouts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 interface WorkoutExerciseRow {
   tempId: string;
   exercise_id: string;
-  exercise: Exercise | null;
+  exercise_name: string;
   sets: number;
   reps: number;
   weight_kg: number | null;
@@ -22,7 +23,7 @@ interface WorkoutExerciseRow {
 interface WorkoutFormProps {
   exercises: Exercise[];
   initialName?: string;
-  initialExercises?: WorkoutExerciseWithDetails[];
+  initialExercises?: WorkoutExercise[];
   workoutId?: string;
 }
 
@@ -36,18 +37,16 @@ export function WorkoutForm({
   const router = useRouter();
   const [name, setName] = useState(initialName);
   const [rows, setRows] = useState<WorkoutExerciseRow[]>(
-    initialExercises.length > 0
-      ? initialExercises.map((we, i) => ({
-          tempId: crypto.randomUUID(),
-          exercise_id: we.exercise_id,
-          exercise: we.exercise,
-          sets: we.sets,
-          reps: we.reps,
-          weight_kg: we.weight_kg,
-          rest_sec: we.rest_sec,
-          order_index: i,
-        }))
-      : []
+    initialExercises.map((we, i) => ({
+      tempId: crypto.randomUUID(),
+      exercise_id: we.exercise_id,
+      exercise_name: we.exercise_name,
+      sets: we.sets,
+      reps: we.reps,
+      weight_kg: we.weight_kg,
+      rest_sec: we.rest_sec,
+      order_index: i,
+    }))
   );
   const [saving, setSaving] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
@@ -58,7 +57,7 @@ export function WorkoutForm({
       {
         tempId: crypto.randomUUID(),
         exercise_id: ex.id,
-        exercise: ex,
+        exercise_name: ex.name,
         sets: 3,
         reps: 10,
         weight_kg: null,
@@ -94,43 +93,19 @@ export function WorkoutForm({
   async function handleSave() {
     if (!name.trim() || rows.length === 0) return;
     setSaving(true);
-
     try {
-      const supabase = createClient();
+      const exerciseInputs = rows.map((r) => ({
+        exerciseId: r.exercise_id,
+        sets: r.sets,
+        reps: r.reps,
+        weightKg: r.weight_kg,
+        restSec: r.rest_sec,
+      }));
 
       if (workoutId) {
-        await supabase.from("workouts").update({ name }).eq("id", workoutId);
-        await supabase.from("workout_exercises").delete().eq("workout_id", workoutId);
-        await supabase.from("workout_exercises").insert(
-          rows.map((r, i) => ({
-            workout_id: workoutId,
-            exercise_id: r.exercise_id,
-            sets: r.sets,
-            reps: r.reps,
-            weight_kg: r.weight_kg,
-            rest_sec: r.rest_sec,
-            order_index: i,
-          }))
-        );
+        await updateWorkoutAction(workoutId, name, exerciseInputs);
       } else {
-        const { data: workout, error } = await supabase
-          .from("workouts")
-          .insert({ name })
-          .select()
-          .single();
-        if (error) throw error;
-
-        await supabase.from("workout_exercises").insert(
-          rows.map((r, i) => ({
-            workout_id: workout.id,
-            exercise_id: r.exercise_id,
-            sets: r.sets,
-            reps: r.reps,
-            weight_kg: r.weight_kg,
-            rest_sec: r.rest_sec,
-            order_index: i,
-          }))
-        );
+        await createWorkoutAction(name, exerciseInputs);
       }
 
       router.push("/workouts");
@@ -158,7 +133,7 @@ export function WorkoutForm({
             >
               <div className="flex items-center justify-between">
                 <span className="font-medium text-gray-900 dark:text-white">
-                  {idx + 1}. {row.exercise?.name ?? "—"}
+                  {idx + 1}. {row.exercise_name}
                 </span>
                 <div className="flex gap-1">
                   <button

@@ -1,48 +1,33 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/auth/session";
+import { getWorkoutById } from "@/lib/db/queries/workouts";
+import { getExercises } from "@/lib/db/queries/exercises";
 import { WorkoutForm } from "@/components/workouts/workout-form";
+import { redirect } from "next/navigation";
 
 export default async function EditWorkoutPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const supabase = createClient();
+  const session = await getSession();
+  if (!session) redirect("/login");
 
-  const [workoutResult, exercisesResult] = await Promise.all([
-    supabase
-      .from("workouts")
-      .select(`
-        *,
-        workout_exercises(
-          *,
-          exercise:exercises(*)
-        )
-      `)
-      .eq("id", params.id)
-      .single(),
-    supabase.from("exercises").select("*").order("name"),
+  const [workout, exercises] = await Promise.all([
+    getWorkoutById(params.id, session.userId),
+    getExercises(session.userId),
   ]);
 
-  if (!workoutResult.data) notFound();
-
-  const workout = workoutResult.data;
+  if (!workout) notFound();
 
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-bold text-gray-900 dark:text-white">
-        Edit Workout
-      </h1>
+      <h1 className="mb-4 text-2xl font-bold text-gray-900 dark:text-white">Edit Workout</h1>
       <WorkoutForm
         workoutId={workout.id}
         initialName={workout.name}
-        initialExercises={
-          workout.workout_exercises?.sort(
-            (a: { order_index: number }, b: { order_index: number }) =>
-              a.order_index - b.order_index
-          ) ?? []
-        }
-        exercises={exercisesResult.data ?? []}
+        initialExercises={workout.exercises.sort((a, b) => a.order_index - b.order_index)}
+        exercises={exercises}
       />
     </div>
   );

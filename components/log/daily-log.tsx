@@ -3,14 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/context";
-import { createClient } from "@/lib/supabase/client";
-import type { Exercise, ExerciseLog, WeightLog } from "@/lib/types/database";
+import { logWeightAction, logExerciseAction } from "@/lib/actions/log";
+import type { Exercise } from "@/lib/db/queries/exercises";
+import type { WeightEntry, ExerciseLogEntry } from "@/lib/db/queries/log";
 import { Button } from "@/components/ui/button";
 
 interface DailyLogProps {
   exercises: Exercise[];
-  initialWeightLogs: WeightLog[];
-  initialExerciseLogs: (ExerciseLog & { exercise: { name: string } | null })[];
+  initialWeightLogs: WeightEntry[];
+  initialExerciseLogs: ExerciseLogEntry[];
   initialDate: string;
 }
 
@@ -26,11 +27,9 @@ export function DailyLog({
   const [weightLogs, setWeightLogs] = useState(initialWeightLogs);
   const [exerciseLogs, setExerciseLogs] = useState(initialExerciseLogs);
 
-  // Weight form
   const [weightKg, setWeightKg] = useState("");
   const [savingWeight, setSavingWeight] = useState(false);
 
-  // Exercise log form
   const [showExForm, setShowExForm] = useState(false);
   const [exId, setExId] = useState("");
   const [exSets, setExSets] = useState("3");
@@ -38,31 +37,24 @@ export function DailyLog({
   const [exWeight, setExWeight] = useState("");
   const [savingEx, setSavingEx] = useState(false);
 
-  async function handleDateChange(newDate: string) {
+  function handleDateChange(newDate: string) {
+    router.push(`/log?date=${newDate}`);
     setDate(newDate);
-    const supabase = createClient();
-    const [wResult, eResult] = await Promise.all([
-      supabase.from("weight_log").select("*").eq("date", newDate),
-      supabase.from("exercise_log").select("*, exercise:exercises(name)").eq("date", newDate),
-    ]);
-    setWeightLogs(wResult.data ?? []);
-    setExerciseLogs(eResult.data ?? []);
   }
 
   async function handleLogWeight() {
     if (!weightKg) return;
     setSavingWeight(true);
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("weight_log")
-        .insert({ date, weight_kg: parseFloat(weightKg) })
-        .select()
-        .single();
-      if (error) throw error;
-      setWeightLogs((prev) => [...prev, data]);
+      const formData = new FormData();
+      formData.set("date", date);
+      formData.set("weight_kg", weightKg);
+      await logWeightAction(formData);
+      setWeightLogs((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), user_id: "", date, weight_kg: parseFloat(weightKg) },
+      ]);
       setWeightKg("");
-      router.refresh();
     } finally {
       setSavingWeight(false);
     }
@@ -72,43 +64,35 @@ export function DailyLog({
     if (!exId) return;
     setSavingEx(true);
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("exercise_log")
-        .insert({
+      const formData = new FormData();
+      formData.set("date", date);
+      formData.set("exercise_id", exId);
+      formData.set("sets", exSets);
+      formData.set("reps", exReps);
+      if (exWeight) formData.set("weight_kg", exWeight);
+      await logExerciseAction(formData);
+      const exName = exercises.find((e) => e.id === exId)?.name ?? null;
+      setExerciseLogs((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          user_id: "",
           date,
           exercise_id: exId,
+          exercise_name: exName,
           sets: parseInt(exSets),
           reps: parseInt(exReps),
           weight_kg: exWeight ? parseFloat(exWeight) : null,
-        })
-        .select("*, exercise:exercises(name)")
-        .single();
-      if (error) throw error;
-      setExerciseLogs((prev) => [...prev, data]);
+        },
+      ]);
       setShowExForm(false);
       setExId("");
       setExSets("3");
       setExReps("10");
       setExWeight("");
-      router.refresh();
     } finally {
       setSavingEx(false);
     }
-  }
-
-  async function deleteWeightLog(id: string) {
-    const supabase = createClient();
-    await supabase.from("weight_log").delete().eq("id", id);
-    setWeightLogs((prev) => prev.filter((w) => w.id !== id));
-    router.refresh();
-  }
-
-  async function deleteExerciseLog(id: string) {
-    const supabase = createClient();
-    await supabase.from("exercise_log").delete().eq("id", id);
-    setExerciseLogs((prev) => prev.filter((e) => e.id !== id));
-    router.refresh();
   }
 
   return (
@@ -125,7 +109,6 @@ export function DailyLog({
         />
       </div>
 
-      {/* Body weight section */}
       <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
         <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
           {t.log.bodyWeight}
@@ -148,19 +131,12 @@ export function DailyLog({
             {weightLogs.map((w) => (
               <li key={w.id} className="flex items-center justify-between text-sm">
                 <span className="text-gray-700 dark:text-gray-300">{w.weight_kg} kg</span>
-                <button
-                  onClick={() => deleteWeightLog(w.id)}
-                  className="text-gray-400 hover:text-red-600"
-                >
-                  <XIcon className="h-4 w-4" />
-                </button>
               </li>
             ))}
           </ul>
         )}
       </div>
 
-      {/* Exercise log section */}
       <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -186,43 +162,20 @@ export function DailyLog({
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <label className="text-xs text-gray-500">{t.workouts.sets}</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={exSets}
-                  onChange={(e) => setExSets(e.target.value)}
-                  className="mt-0.5 block w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                />
+                <input type="number" min={1} value={exSets} onChange={(e) => setExSets(e.target.value)} className="mt-0.5 block w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" />
               </div>
               <div>
                 <label className="text-xs text-gray-500">{t.workouts.reps}</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={exReps}
-                  onChange={(e) => setExReps(e.target.value)}
-                  className="mt-0.5 block w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                />
+                <input type="number" min={1} value={exReps} onChange={(e) => setExReps(e.target.value)} className="mt-0.5 block w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" />
               </div>
               <div>
                 <label className="text-xs text-gray-500">{t.workouts.weight}</label>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.5}
-                  value={exWeight}
-                  onChange={(e) => setExWeight(e.target.value)}
-                  className="mt-0.5 block w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                />
+                <input type="number" min={0} step={0.5} value={exWeight} onChange={(e) => setExWeight(e.target.value)} className="mt-0.5 block w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" />
               </div>
             </div>
             <div className="flex gap-2">
-              <Button size="sm" onClick={handleLogExercise} loading={savingEx} disabled={!exId}>
-                {t.common.save}
-              </Button>
-              <Button size="sm" variant="secondary" onClick={() => setShowExForm(false)}>
-                {t.common.cancel}
-              </Button>
+              <Button size="sm" onClick={handleLogExercise} loading={savingEx} disabled={!exId}>{t.common.save}</Button>
+              <Button size="sm" variant="secondary" onClick={() => setShowExForm(false)}>{t.common.cancel}</Button>
             </div>
           </div>
         )}
@@ -234,33 +187,17 @@ export function DailyLog({
             {exerciseLogs.map((entry) => (
               <li key={entry.id} className="flex items-center justify-between rounded-lg border border-gray-100 p-2 dark:border-gray-800">
                 <div>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {entry.exercise?.name ?? "—"}
-                  </span>
+                  <span className="font-medium text-gray-900 dark:text-white">{entry.exercise_name ?? "—"}</span>
                   <span className="ml-2 text-sm text-gray-500">
                     {entry.sets}x{entry.reps}
                     {entry.weight_kg ? ` @ ${entry.weight_kg}kg` : ""}
                   </span>
                 </div>
-                <button
-                  onClick={() => deleteExerciseLog(entry.id)}
-                  className="text-gray-400 hover:text-red-600"
-                >
-                  <XIcon className="h-4 w-4" />
-                </button>
               </li>
             ))}
           </ul>
         )}
       </div>
     </div>
-  );
-}
-
-function XIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-    </svg>
   );
 }

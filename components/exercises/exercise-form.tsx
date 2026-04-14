@@ -4,7 +4,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useTranslation } from "@/lib/i18n/context";
-import { MUSCLE_GROUPS, type EquipmentType, type ExerciseWithEquipment, type MuscleGroup } from "@/lib/types/database";
+import { MUSCLE_GROUPS, type MuscleGroup } from "@/lib/types/database";
+import type { Exercise } from "@/lib/db/queries/exercises";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -18,9 +19,15 @@ const exerciseSchema = z.object({
 
 export type ExerciseFormValues = z.infer<typeof exerciseSchema>;
 
+interface EquipmentOption {
+  id: string;
+  name: string;
+  icon?: string | null;
+}
+
 interface ExerciseFormProps {
-  exercise?: ExerciseWithEquipment | null;
-  equipment: EquipmentType[];
+  exercise?: Exercise | null;
+  equipment: EquipmentOption[];
   onSubmit: (data: ExerciseFormValues) => Promise<void>;
   onCancel: () => void;
 }

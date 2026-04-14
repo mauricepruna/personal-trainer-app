@@ -1,18 +1,16 @@
-import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/auth/session";
+import { getEquipmentTypes, getExercises } from "@/lib/db/queries/exercises";
 import { PlanGenerator } from "@/components/plan-generator/plan-generator";
+import { redirect } from "next/navigation";
 
 export default async function PlanGeneratorPage() {
-  const supabase = createClient();
+  const session = await getSession();
+  if (!session) redirect("/login");
 
-  const [equipmentResult, exercisesResult] = await Promise.all([
-    supabase.from("equipment_types").select("*").order("name"),
-    supabase.from("exercises").select("*").order("name"),
+  const [equipment, exercises] = await Promise.all([
+    getEquipmentTypes(),
+    getExercises(session.userId),
   ]);
 
-  return (
-    <PlanGenerator
-      equipment={equipmentResult.data ?? []}
-      exercises={exercisesResult.data ?? []}
-    />
-  );
+  return <PlanGenerator equipment={equipment} exercises={exercises} />;
 }

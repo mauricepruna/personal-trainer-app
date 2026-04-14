@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import type { WorkoutWithExercises } from "@/lib/types/database";
+import type { Workout } from "@/lib/db/queries/workouts";
 
 interface WorkoutCardProps {
-  workout: WorkoutWithExercises;
+  workout: Workout;
   onDelete: (id: string) => void;
 }
 
 export function WorkoutCard({ workout, onDelete }: WorkoutCardProps) {
-  const exerciseCount = workout.workout_exercises?.length ?? 0;
+  const exerciseCount = workout.exercises?.length ?? 0;
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
@@ -29,13 +29,13 @@ export function WorkoutCard({ workout, onDelete }: WorkoutCardProps) {
           <TrashIcon className="h-4 w-4" />
         </button>
       </div>
-      {workout.workout_exercises && workout.workout_exercises.length > 0 && (
+      {workout.exercises && workout.exercises.length > 0 && (
         <ul className="mt-2 space-y-0.5">
-          {workout.workout_exercises
+          {workout.exercises
             .sort((a, b) => a.order_index - b.order_index)
             .map((we) => (
               <li key={we.id} className="text-sm text-gray-600 dark:text-gray-400">
-                {we.exercise?.name}: {we.sets}x{we.reps}
+                {we.exercise_name}: {we.sets}x{we.reps}
                 {we.weight_kg ? ` @ ${we.weight_kg}kg` : ""}
               </li>
             ))}
