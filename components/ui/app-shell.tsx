@@ -10,12 +10,12 @@ import { logoutAction } from "@/lib/auth/actions";
 const primaryNavItems = [
   { key: "dashboard" as const, href: "/dashboard", icon: HomeIcon },
   { key: "myPlan" as const, href: "/my-plan", icon: StarIcon },
-  { key: "workouts" as const, href: "/workouts", icon: ClipboardIcon },
   { key: "calendar" as const, href: "/calendar", icon: CalendarIcon },
   { key: "progress" as const, href: "/progress", icon: ChartIcon },
 ];
 
 const secondaryNavItems = [
+  { key: "workouts" as const, href: "/workouts", icon: ClipboardIcon }, 
   { key: "exercises" as const, href: "/exercises", icon: DumbbellIcon },
   { key: "log" as const, href: "/log", icon: PenIcon },
   { key: "planGenerator" as const, href: "/plan-generator", icon: WandIcon },

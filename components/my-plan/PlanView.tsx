@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { getPlanForPhase, PHASES, type Phase, type WorkoutDay, type PlannedExercise } from "@/lib/data/my-plan";
+import { markPlanDayCompleteAction } from "@/lib/actions/calendar";
 
 const PHASE_COLORS: Record<Phase, { bg: string; text: string; border: string; badge: string }> = {
   1: { bg: "bg-blue-50 dark:bg-blue-950/40", text: "text-blue-700 dark:text-blue-300", border: "border-blue-200 dark:border-blue-800", badge: "bg-blue-600" },
@@ -17,6 +18,147 @@ const DAY_TYPE_COLORS: Record<WorkoutDay["type"], string> = {
   cardio: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300",
 };
 
+const PHASE_REST: Record<Phase, number[]> = {
+  1: [90, 120],
+  2: [60, 90],
+  3: [60, 75],
+};
+
+// ── Alarm ────────────────────────────────────────────────────────────────────
+function playAlarm() {
+  try {
+    const ctx = new AudioContext();
+    const beep = (freq: number, start: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.4, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + duration);
+    };
+    beep(880,  0,    0.15);
+    beep(1100, 0.2,  0.15);
+    beep(1320, 0.4,  0.3);
+  } catch { /* SSR / old browser */ }
+}
+
+function playSuccess() {
+  try {
+    const ctx = new AudioContext();
+    const beep = (freq: number, start: number, dur: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = "sine"; osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.35, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+      osc.start(ctx.currentTime + start); osc.stop(ctx.currentTime + start + dur);
+    };
+    beep(523, 0,    0.12);
+    beep(659, 0.14, 0.12);
+    beep(784, 0.28, 0.12);
+    beep(1047,0.42, 0.3);
+  } catch { /* SSR / old browser */ }
+}
+
+// ── Rest Timer ───────────────────────────────────────────────────────────────
+function RestTimer({ phase }: { phase: Phase }) {
+  const presets = PHASE_REST[phase];
+  const [seconds, setSeconds] = useState<number>(presets[0]);
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const [done, setDone] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isRunning = remaining !== null && remaining > 0;
+
+  const clear = useCallback(() => {
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+  }, []);
+
+  const start = useCallback((secs: number) => {
+    clear(); setDone(false); setRemaining(secs);
+    intervalRef.current = setInterval(() => {
+      setRemaining((r) => (r === null || r <= 1 ? 0 : r - 1));
+    }, 1000);
+  }, [clear]);
+
+  const stop = useCallback(() => { clear(); setRemaining(null); setDone(false); }, [clear]);
+
+  useEffect(() => {
+    if (remaining === 0 && !done) { clear(); setDone(true); playAlarm(); }
+  }, [remaining, done, clear]);
+
+  useEffect(() => () => clear(), [clear]);
+
+  const progress = remaining !== null && seconds > 0 ? remaining / seconds : 1;
+  const circumference = 2 * Math.PI * 26;
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+  return (
+    <div className="fixed bottom-[4.5rem] left-1/2 z-40 -translate-x-1/2 md:bottom-4">
+      <div className={`flex items-center gap-3 rounded-2xl px-4 py-2.5 shadow-xl ring-1 transition-colors ${
+        done ? "bg-green-500 ring-green-400 text-white"
+          : isRunning ? "bg-gray-900 ring-gray-700 text-white dark:bg-gray-800 dark:ring-gray-600"
+          : "bg-white ring-gray-200 text-gray-900 dark:bg-gray-900 dark:ring-gray-700 dark:text-white"
+      }`}>
+        <div className="relative flex h-14 w-14 flex-shrink-0 items-center justify-center">
+          <svg className="-rotate-90" width="56" height="56">
+            <circle cx="28" cy="28" r="26" fill="none" strokeWidth="3"
+              className={done ? "stroke-green-300/40" : "stroke-gray-200 dark:stroke-gray-700"} />
+            <circle cx="28" cy="28" r="26" fill="none" strokeWidth="3"
+              strokeDasharray={circumference} strokeDashoffset={circumference * (1 - progress)}
+              strokeLinecap="round"
+              className={`transition-all duration-1000 ${done ? "stroke-white" : "stroke-blue-500"}`}
+            />
+          </svg>
+          <span className="absolute text-sm font-bold tabular-nums">
+            {done ? "GO!" : remaining !== null ? fmt(remaining) : fmt(seconds)}
+          </span>
+        </div>
+
+        {done || !isRunning ? (
+          <div className="flex flex-col gap-1.5">
+            <div className="flex gap-1">
+              {presets.map((s) => (
+                <button key={s} onClick={() => { setSeconds(s); start(s); }}
+                  className={`rounded-lg px-3 py-1 text-xs font-semibold transition-colors ${
+                    done ? "bg-white/20 hover:bg-white/30 text-white" : "bg-blue-600 hover:bg-blue-700 text-white"
+                  }`}>
+                  {fmt(s)}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setSeconds((s) => Math.max(15, s - 15))}
+                className="rounded px-1.5 py-0.5 text-xs font-bold opacity-60 hover:opacity-100">−15</button>
+              <span className="min-w-[3rem] text-center text-xs opacity-60">{fmt(seconds)}</span>
+              <button onClick={() => setSeconds((s) => Math.min(300, s + 15))}
+                className="rounded px-1.5 py-0.5 text-xs font-bold opacity-60 hover:opacity-100">+15</button>
+              <button onClick={() => start(seconds)}
+                className={`ml-1 rounded-lg px-3 py-1 text-xs font-semibold ${
+                  done ? "bg-white/20 hover:bg-white/30 text-white" : "bg-gray-700 hover:bg-gray-600 text-white dark:bg-gray-600"
+                }`}>
+                Start
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <p className="text-xs opacity-70">Rest timer</p>
+            <button onClick={stop} className="rounded-lg bg-white/20 px-3 py-1 text-xs font-semibold hover:bg-white/30">
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── PlanView ─────────────────────────────────────────────────────────────────
 export function PlanView() {
   const [phase, setPhase] = useState<Phase>(1);
   const [activeDay, setActiveDay] = useState<string>("upper-a");
@@ -24,8 +166,53 @@ export function PlanView() {
   const selectedDay = days.find((d) => d.id === activeDay) ?? days[0];
   const colors = PHASE_COLORS[phase];
 
+  // Lifted set-completion state: exerciseKey → number of completed sets
+  const [completedSetsMap, setCompletedSetsMap] = useState<Record<string, number>>({});
+
+  // Workout-done flow
+  const [marking, setMarking] = useState(false);
+  const [markedDone, setMarkedDone] = useState(false);
+
+  function handleDayChange(id: string) {
+    setActiveDay(id);
+    setCompletedSetsMap({});
+    setMarkedDone(false);
+  }
+
+  function handleSetToggle(exerciseKey: string, index: number) {
+    setCompletedSetsMap((prev) => {
+      const current = prev[exerciseKey] ?? 0;
+      return { ...prev, [exerciseKey]: index < current ? index : index + 1 };
+    });
+  }
+
+  // All exercises done?
+  const trackableExercises = selectedDay.exercises;
+  const allExercisesDone =
+    trackableExercises.length > 0 &&
+    trackableExercises.every((ex) => {
+      const total = parseInt(ex.sets, 10) || 3;
+      return (completedSetsMap[ex.key] ?? 0) >= total;
+    });
+
+  async function handleMarkComplete() {
+    setMarking(true);
+    try {
+      await markPlanDayCompleteAction(activeDay);
+      playSuccess();
+      setMarkedDone(true);
+      // Reset sets after short delay so user sees the success state
+      setTimeout(() => {
+        setCompletedSetsMap({});
+        setMarkedDone(false);
+      }, 2500);
+    } finally {
+      setMarking(false);
+    }
+  }
+
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6 pb-40">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My 12-Week Plan</h1>
@@ -40,13 +227,10 @@ export function PlanView() {
           const c = PHASE_COLORS[p];
           const active = phase === p;
           return (
-            <button
-              key={p}
-              onClick={() => setPhase(p)}
+            <button key={p} onClick={() => setPhase(p)}
               className={`rounded-xl border-2 p-3 text-left transition-all ${
                 active ? `${c.bg} ${c.border} ${c.text}` : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:border-gray-300"
-              }`}
-            >
+              }`}>
               <div className="flex items-center gap-2">
                 <span className={`inline-block h-2 w-2 rounded-full ${active ? c.badge : "bg-gray-300 dark:bg-gray-600"}`} />
                 <span className="text-xs font-semibold uppercase tracking-wide">{PHASES[p].label}</span>
@@ -69,15 +253,12 @@ export function PlanView() {
       {/* Day selector */}
       <div className="flex gap-2 overflow-x-auto pb-1">
         {days.map((day) => (
-          <button
-            key={day.id}
-            onClick={() => setActiveDay(day.id)}
+          <button key={day.id} onClick={() => handleDayChange(day.id)}
             className={`flex-shrink-0 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
               activeDay === day.id
                 ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-            }`}
-          >
+            }`}>
             <span className="block text-[10px] opacity-60">{day.dayOfWeek}</span>
             {day.label.split(" — ")[0]}
           </button>
@@ -85,17 +266,78 @@ export function PlanView() {
       </div>
 
       {/* Selected day */}
-      <DayView day={selectedDay} phase={phase} />
+      <DayView
+        day={selectedDay}
+        phase={phase}
+        completedSetsMap={completedSetsMap}
+        onSetToggle={handleSetToggle}
+      />
+
+      {/* Workout-complete banner */}
+      {(allExercisesDone || markedDone) && (
+        <div className={`fixed bottom-[4.5rem] left-0 right-0 z-50 px-4 md:bottom-4 md:left-auto md:right-8 md:w-80`}>
+          <div className={`rounded-2xl p-4 shadow-2xl ring-1 transition-all ${
+            markedDone
+              ? "bg-green-500 ring-green-400 text-white"
+              : "bg-gray-900 ring-gray-700 text-white dark:bg-gray-800"
+          }`}>
+            {markedDone ? (
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🎉</span>
+                <div>
+                  <p className="font-bold">Workout logged!</p>
+                  <p className="text-sm opacity-80">Marked complete on your calendar.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold">All sets done!</p>
+                  <p className="text-xs opacity-70">Log this on your calendar?</p>
+                </div>
+                <div className="flex flex-shrink-0 gap-2">
+                  <button
+                    onClick={() => setCompletedSetsMap({})}
+                    className="rounded-xl bg-white/10 px-3 py-2 text-sm font-medium hover:bg-white/20 transition-colors"
+                  >
+                    Not yet
+                  </button>
+                  <button
+                    onClick={handleMarkComplete}
+                    disabled={marking}
+                    className="rounded-xl bg-green-500 px-4 py-2 text-sm font-bold hover:bg-green-400 disabled:opacity-60 transition-colors"
+                  >
+                    {marking ? "Saving…" : "Mark done"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Floating rest timer — hidden when completion banner is active */}
+      {!allExercisesDone && !markedDone && <RestTimer phase={phase} />}
     </div>
   );
 }
 
-function DayView({ day, phase }: { day: WorkoutDay; phase: Phase }) {
+// ── DayView ───────────────────────────────────────────────────────────────────
+function DayView({
+  day,
+  phase,
+  completedSetsMap,
+  onSetToggle,
+}: {
+  day: WorkoutDay;
+  phase: Phase;
+  completedSetsMap: Record<string, number>;
+  onSetToggle: (exerciseKey: string, index: number) => void;
+}) {
   const colors = PHASE_COLORS[phase];
 
   return (
     <div className="space-y-4">
-      {/* Day header */}
       <div className="flex items-center gap-3">
         <h2 className="text-lg font-bold text-gray-900 dark:text-white">{day.label}</h2>
         <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${DAY_TYPE_COLORS[day.type]}`}>
@@ -103,18 +345,23 @@ function DayView({ day, phase }: { day: WorkoutDay; phase: Phase }) {
         </span>
       </div>
 
-      {/* Cardio note */}
       {day.cardioNote && (
         <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800/50 dark:bg-yellow-950/30">
           <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">🏃 {day.cardioNote}</p>
         </div>
       )}
 
-      {/* Exercises */}
       {day.exercises.length > 0 ? (
         <div className="space-y-4">
           {day.exercises.map((ex, i) => (
-            <ExerciseCard key={ex.key} exercise={ex} index={i} colors={colors} />
+            <ExerciseCard
+              key={ex.key}
+              exercise={ex}
+              index={i}
+              colors={colors}
+              completedSets={completedSetsMap[ex.key] ?? 0}
+              onSetToggle={(idx) => onSetToggle(ex.key, idx)}
+            />
           ))}
         </div>
       ) : (
@@ -126,21 +373,32 @@ function DayView({ day, phase }: { day: WorkoutDay; phase: Phase }) {
   );
 }
 
+// ── ExerciseCard ──────────────────────────────────────────────────────────────
 function ExerciseCard({
   exercise,
   index,
   colors,
+  completedSets,
+  onSetToggle,
 }: {
   exercise: PlannedExercise;
   index: number;
   colors: { bg: string; text: string; border: string; badge: string };
+  completedSets: number;
+  onSetToggle: (index: number) => void;
 }) {
   const [imgIndex, setImgIndex] = useState(0);
   const [expanded, setExpanded] = useState(false);
+  const totalSets = parseInt(exercise.sets, 10) || 3;
+  const allDone = completedSets >= totalSets;
   const imgSrc = `/exercise-images/${exercise.key}/${imgIndex}.jpg`;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <div className={`overflow-hidden rounded-xl border shadow-sm transition-colors ${
+      allDone
+        ? "border-green-300 bg-green-50 dark:border-green-800 dark:bg-green-950/30"
+        : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900"
+    }`}>
       <div className="flex gap-4 p-4">
         {/* Image */}
         <button
@@ -148,13 +406,7 @@ function ExerciseCard({
           className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800"
           title="Tap to see other position"
         >
-          <Image
-            src={imgSrc}
-            alt={exercise.name}
-            fill
-            className="object-cover transition-opacity duration-300"
-            sizes="96px"
-          />
+          <Image src={imgSrc} alt={exercise.name} fill className="object-cover transition-opacity duration-300" sizes="96px" />
           <span className="absolute bottom-1 right-1 rounded bg-black/50 px-1 text-[9px] text-white">
             {imgIndex === 0 ? "START" : "END"}
           </span>
@@ -164,12 +416,16 @@ function ExerciseCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <span className={`text-xs font-bold ${colors.text}`}>#{index + 1}</span>
+              <span className={`text-xs font-bold ${allDone ? "text-green-600 dark:text-green-400" : colors.text}`}>
+                #{index + 1}
+              </span>
               <h3 className="font-semibold text-gray-900 dark:text-white">{exercise.name}</h3>
             </div>
+            {allDone && (
+              <span className="flex-shrink-0 rounded-full bg-green-500 px-2 py-0.5 text-[10px] font-bold text-white">✓ Done</span>
+            )}
           </div>
 
-          {/* Muscles */}
           <div className="mt-1 flex flex-wrap gap-1">
             {exercise.primaryMuscles.map((m) => (
               <span key={m} className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400 capitalize">
@@ -178,16 +434,38 @@ function ExerciseCard({
             ))}
           </div>
 
-          {/* Sets / reps / weight */}
-          <div className="mt-2 grid grid-cols-3 gap-2">
-            <Stat label="Sets" value={exercise.sets} />
+          <div className="mt-2 grid grid-cols-2 gap-2">
             <Stat label="Reps" value={exercise.reps} />
             <Stat label="Start" value={exercise.startWeight} small />
           </div>
         </div>
       </div>
 
-      {/* Target + Tip expandable */}
+      {/* Set tracker */}
+      <div className="border-t border-gray-100 px-4 py-3 dark:border-gray-800">
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+            Sets {completedSets}/{totalSets}
+          </span>
+          <div className="flex gap-2">
+            {Array.from({ length: totalSets }).map((_, i) => (
+              <button
+                key={i}
+                onClick={() => onSetToggle(i)}
+                className={`h-8 w-8 rounded-full border-2 text-xs font-bold transition-all active:scale-95 ${
+                  i < completedSets
+                    ? "border-green-500 bg-green-500 text-white"
+                    : "border-gray-300 bg-white text-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-500"
+                }`}
+              >
+                {i < completedSets ? "✓" : i + 1}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Target + Tip */}
       <div className="border-t border-gray-100 dark:border-gray-800">
         <button
           onClick={() => setExpanded((v) => !v)}
@@ -220,10 +498,8 @@ function Stat({ label, value, small }: { label: string; value: string; small?: b
 
 function ChevronIcon({ expanded }: { expanded: boolean }) {
   return (
-    <svg
-      className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
-      fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
-    >
+    <svg className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
+      fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
     </svg>
   );

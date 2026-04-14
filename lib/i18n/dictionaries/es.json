@@ -105,7 +105,10 @@
     "markComplete": "Marcar Completado",
     "completed": "Completado",
     "scheduled": "Programado",
-    "deleteConfirm": "¿Estás seguro de que quieres eliminar esta sesión?"
+    "deleteConfirm": "¿Estás seguro de que quieres eliminar esta sesión?",
+    "addNote": "Agregar nota",
+    "editNote": "Editar nota",
+    "saveNote": "Guardar nota"
   },
   "log": {
     "title": "Registro Diario",
