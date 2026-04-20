@@ -159,6 +159,19 @@ function RestTimer({ phase }: { phase: Phase }) {
   );
 }
 
+const WEEK_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAY_ID_INDEX: Record<string, number> = {
+  "upper-a": 0, "lower-a": 1, "cardio": 2, "upper-b": 3, "lower-b": 4, "easy-cardio": 5,
+};
+
+function computedDayOfWeek(startDate: string | null | undefined, dayId: string): string {
+  if (!startDate) return "";
+  const [y, m, d] = startDate.split("-").map(Number);
+  const startDow = new Date(y, m - 1, d).getDay();
+  const idx = DAY_ID_INDEX[dayId] ?? 0;
+  return WEEK_DAYS[(startDow + idx) % 7];
+}
+
 // ── PlanView ─────────────────────────────────────────────────────────────────
 export function PlanView({ status }: { status?: PlanStatus }) {
   const defaultDay = status?.todayDayId ?? status?.nextDayId ?? "upper-a";
@@ -267,7 +280,7 @@ export function PlanView({ status }: { status?: PlanStatus }) {
       </div>
 
       {/* Day selector */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-2 overflow-x-auto pt-3 pb-1">
         {days.map((day) => {
           const isToday = status?.todayDayId === day.id;
           const isMissed = status?.missedDayIds?.includes(day.id);
@@ -303,6 +316,7 @@ export function PlanView({ status }: { status?: PlanStatus }) {
         phase={phase}
         completedSetsMap={completedSetsMap}
         onSetToggle={handleSetToggle}
+        dayOfWeek={computedDayOfWeek(status?.startDate, selectedDay.id)}
       />
 
       {/* Workout-complete banner */}
@@ -371,11 +385,13 @@ function DayView({
   phase,
   completedSetsMap,
   onSetToggle,
+  dayOfWeek,
 }: {
   day: WorkoutDay;
   phase: Phase;
   completedSetsMap: Record<string, number>;
   onSetToggle: (exerciseKey: string, index: number) => void;
+  dayOfWeek?: string;
 }) {
   const colors = PHASE_COLORS[phase];
 
@@ -384,7 +400,7 @@ function DayView({
       <div className="flex items-center gap-3">
         <h2 className="text-lg font-bold text-gray-900 dark:text-white">{day.label}</h2>
         <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${DAY_TYPE_COLORS[day.type]}`}>
-          {day.dayOfWeek}
+          {dayOfWeek || day.dayOfWeek}
         </span>
       </div>
 
