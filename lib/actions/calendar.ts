@@ -12,6 +12,12 @@ async function requireSession() {
   return session;
 }
 
+export async function fetchSessionsAction(year: number, month: number) {
+  const session = await requireSession();
+  const { getSessionsForMonth } = await import("@/lib/db/queries/calendar");
+  return getSessionsForMonth(session.userId, year, month);
+}
+
 export async function createSessionAction(formData: FormData) {
   const session = await requireSession();
   const workoutId = (formData.get("workout_id") as string) || null;
@@ -68,12 +74,13 @@ const DAY_TO_WORKOUT: Record<string, string> = {
 export async function markPlanDayCompleteAction(dayId: string) {
   const session = await requireSession();
   const workoutName = DAY_TO_WORKOUT[dayId];
-  if (!workoutName) return { success: false };
+  if (!workoutName) return { success: false, marked: false, usedFallback: false };
 
   const db = getDb();
   const today = new Date().toISOString().split("T")[0];
 
-  const row = db.prepare(`
+  // Try exact match first (session scheduled for today)
+  const todayRow = db.prepare(`
     SELECT s.id FROM sessions s
     JOIN workouts w ON w.id = s.workout_id
     WHERE s.user_id = ? AND date(s.scheduled_at) = ? AND w.name = ?
@@ -81,11 +88,28 @@ export async function markPlanDayCompleteAction(dayId: string) {
     LIMIT 1
   `).get(session.userId, today, workoutName) as { id: string } | undefined;
 
-  if (row) {
-    db.prepare("UPDATE sessions SET completed_at = datetime('now') WHERE id = ?").run(row.id);
+  if (todayRow) {
+    db.prepare("UPDATE sessions SET completed_at = datetime('now') WHERE id = ?").run(todayRow.id);
     revalidatePath("/calendar");
+    return { success: true, marked: true, usedFallback: false };
   }
-  return { success: true, marked: !!row };
+
+  // Fallback: nearest incomplete session of this workout type (past or future)
+  const fallbackRow = db.prepare(`
+    SELECT s.id FROM sessions s
+    JOIN workouts w ON w.id = s.workout_id
+    WHERE s.user_id = ? AND w.name = ? AND s.completed_at IS NULL
+    ORDER BY ABS(julianday(date(s.scheduled_at)) - julianday(?))
+    LIMIT 1
+  `).get(session.userId, workoutName, today) as { id: string } | undefined;
+
+  if (fallbackRow) {
+    db.prepare("UPDATE sessions SET completed_at = datetime('now') WHERE id = ?").run(fallbackRow.id);
+    revalidatePath("/calendar");
+    return { success: true, marked: true, usedFallback: true };
+  }
+
+  return { success: true, marked: false, usedFallback: false };
 }
 
 export async function updateSessionNotesAction(sessionId: string, notes: string) {

@@ -18,6 +18,7 @@ export interface WorkoutDay {
   type: "push" | "pull" | "lower" | "cardio";
   exercises: PlannedExercise[];
   cardioNote?: string;
+  warmUp?: string[];
 }
 
 export const PHASES: Record<Phase, { label: string; weeks: string; rpe: string; rest: string }> = {
@@ -171,6 +172,29 @@ const tips: Record<string, string> = {
   "glute-bridges": "Squeeze glutes hard at top for 1 sec",
 };
 
+const warmUps: Record<string, string[]> = {
+  "upper-a": [
+    "Arm circles — 20 each direction",
+    "Band pull-aparts — 15 reps",
+    "Push-ups from knees — 2×8 (work toward full push-ups)",
+  ],
+  "lower-a": [
+    "Bodyweight squats — 2×15",
+    "Hip circles — 10 each leg",
+    "Glute bridges — 2×12",
+  ],
+  "upper-b": [
+    "Band pull-aparts — 15 reps",
+    "Dead hangs from pull-up bar — 3×10–15 sec",
+    "Scapular retractions (hang + shrug shoulders down) — 2×8",
+  ],
+  "lower-b": [
+    "Hip hinges (bodyweight) — 2×10",
+    "Leg swings — 10 each leg",
+    "Glute bridges — 2×12",
+  ],
+};
+
 function buildDay(
   id: string,
   label: string,
@@ -187,6 +211,7 @@ function buildDay(
     dayOfWeek,
     type,
     cardioNote,
+    warmUp: warmUps[id],
     exercises: keys.map((key) => {
       const w = weights[key]?.[phase] ?? { sets: "3", reps: "10", start: "—", target: "—" };
       return {

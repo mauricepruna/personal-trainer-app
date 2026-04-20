@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useTransition } from "react";
 import { useTranslation } from "@/lib/i18n/context";
 import {
   createSessionAction,
+  fetchSessionsAction,
   toggleSessionCompleteAction,
   updateSessionTimeAction,
   deleteSessionAction,
@@ -53,6 +54,18 @@ export function CalendarView({ initialSessions, workouts }: CalendarViewProps) {
   const [formTime, setFormTime] = useState("09:00");
   const [formNotes, setFormNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loadingMonth, startMonthTransition] = useTransition();
+
+  // Sync when the server re-renders with new initialSessions (e.g. after plan set/reschedule)
+  useEffect(() => { setSessions(initialSessions); }, [initialSessions]);
+
+  // Re-fetch sessions whenever the displayed month changes
+  useEffect(() => {
+    startMonthTransition(async () => {
+      const data = await fetchSessionsAction(currentYear, currentMonth + 1);
+      setSessions(data);
+    });
+  }, [currentYear, currentMonth]);
 
   // Notes editing
   const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
@@ -183,8 +196,9 @@ export function CalendarView({ initialSessions, workouts }: CalendarViewProps) {
         <button onClick={prevMonth} className="rounded p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800">
           <ChevronLeftIcon className="h-5 w-5" />
         </button>
-        <span className="text-lg font-semibold text-gray-900 dark:text-white">
+        <span className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
           {MONTHS[currentMonth]} {currentYear}
+          {loadingMonth && <span className="h-3 w-3 rounded-full border-2 border-blue-400 border-t-transparent animate-spin inline-block" />}
         </span>
         <button onClick={nextMonth} className="rounded p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800">
           <ChevronRightIcon className="h-5 w-5" />

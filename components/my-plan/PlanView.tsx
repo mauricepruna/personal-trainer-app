@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { getPlanForPhase, PHASES, type Phase, type WorkoutDay, type PlannedExercise } from "@/lib/data/my-plan";
 import { markPlanDayCompleteAction } from "@/lib/actions/calendar";
+import type { PlanStatus } from "@/lib/actions/plan";
 
 const PHASE_COLORS: Record<Phase, { bg: string; text: string; border: string; badge: string }> = {
   1: { bg: "bg-blue-50 dark:bg-blue-950/40", text: "text-blue-700 dark:text-blue-300", border: "border-blue-200 dark:border-blue-800", badge: "bg-blue-600" },
@@ -159,9 +160,11 @@ function RestTimer({ phase }: { phase: Phase }) {
 }
 
 // ── PlanView ─────────────────────────────────────────────────────────────────
-export function PlanView() {
-  const [phase, setPhase] = useState<Phase>(1);
-  const [activeDay, setActiveDay] = useState<string>("upper-a");
+export function PlanView({ status }: { status?: PlanStatus }) {
+  const defaultDay = status?.todayDayId ?? status?.nextDayId ?? "upper-a";
+  const defaultPhase = status?.currentPhase ?? 1;
+  const [phase, setPhase] = useState<Phase>(defaultPhase);
+  const [activeDay, setActiveDay] = useState<string>(defaultDay);
   const days = getPlanForPhase(phase);
   const selectedDay = days.find((d) => d.id === activeDay) ?? days[0];
   const colors = PHASE_COLORS[phase];
@@ -172,6 +175,7 @@ export function PlanView() {
   // Workout-done flow
   const [marking, setMarking] = useState(false);
   const [markedDone, setMarkedDone] = useState(false);
+  const [markNote, setMarkNote] = useState<string | null>(null);
 
   function handleDayChange(id: string) {
     setActiveDay(id);
@@ -198,13 +202,19 @@ export function PlanView() {
   async function handleMarkComplete() {
     setMarking(true);
     try {
-      await markPlanDayCompleteAction(activeDay);
+      const result = await markPlanDayCompleteAction(activeDay);
+      if (!result.marked) {
+        setMarkNote("No session found to log — all sessions may already be complete.");
+        setTimeout(() => setMarkNote(null), 3000);
+        return;
+      }
       playSuccess();
       setMarkedDone(true);
-      // Reset sets after short delay so user sees the success state
+      setMarkNote(result.usedFallback ? "Logged against your nearest scheduled session." : null);
       setTimeout(() => {
         setCompletedSetsMap({});
         setMarkedDone(false);
+        setMarkNote(null);
       }, 2500);
     } finally {
       setMarking(false);
@@ -216,9 +226,15 @@ export function PlanView() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My 12-Week Plan</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Apr 14 – Jul 5, 2026 · 6 days/week · Upper/Lower split
-        </p>
+        {status?.startDate ? (
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Week {status.currentWeek} of 12 · {status.completedCount} sessions done
+          </p>
+        ) : (
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            6 days/week · Upper/Lower split
+          </p>
+        )}
       </div>
 
       {/* Phase selector */}
@@ -252,17 +268,33 @@ export function PlanView() {
 
       {/* Day selector */}
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {days.map((day) => (
-          <button key={day.id} onClick={() => handleDayChange(day.id)}
-            className={`flex-shrink-0 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
-              activeDay === day.id
-                ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-            }`}>
-            <span className="block text-[10px] opacity-60">{day.dayOfWeek}</span>
-            {day.label.split(" — ")[0]}
-          </button>
-        ))}
+        {days.map((day) => {
+          const isToday = status?.todayDayId === day.id;
+          const isMissed = status?.missedDayIds?.includes(day.id);
+          const isActive = activeDay === day.id;
+          return (
+            <button key={day.id} onClick={() => handleDayChange(day.id)}
+              className={`relative flex-shrink-0 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                isActive
+                  ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900"
+                  : isMissed
+                  ? "bg-red-50 text-red-700 ring-1 ring-red-300 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-800"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+              }`}>
+              {isToday && (
+                <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 rounded-full bg-emerald-500 px-1.5 py-px text-[9px] font-bold text-white leading-tight">
+                  TODAY
+                </span>
+              )}
+              {isMissed && !isActive && (
+                <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 rounded-full bg-red-500 px-1.5 py-px text-[9px] font-bold text-white leading-tight">
+                  MISSED
+                </span>
+              )}
+              {day.label.split(" — ")[0]}
+            </button>
+          );
+        })}
       </div>
 
       {/* Selected day */}
@@ -286,7 +318,9 @@ export function PlanView() {
                 <span className="text-2xl">🎉</span>
                 <div>
                   <p className="font-bold">Workout logged!</p>
-                  <p className="text-sm opacity-80">Marked complete on your calendar.</p>
+                  <p className="text-sm opacity-80">
+                    {markNote ?? "Marked complete on your calendar."}
+                  </p>
                 </div>
               </div>
             ) : (
@@ -312,6 +346,15 @@ export function PlanView() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Error note when mark-done finds no session */}
+      {markNote && !markedDone && (
+        <div className="fixed bottom-[4.5rem] left-0 right-0 z-50 px-4 md:bottom-4 md:left-auto md:right-8 md:w-80">
+          <div className="rounded-2xl bg-gray-800 p-4 shadow-2xl ring-1 ring-gray-700 text-white">
+            <p className="text-sm">{markNote}</p>
           </div>
         </div>
       )}
@@ -344,6 +387,19 @@ function DayView({
           {day.dayOfWeek}
         </span>
       </div>
+
+      {day.warmUp && day.warmUp.length > 0 && (
+        <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-800/50 dark:bg-orange-950/30">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-orange-700 dark:text-orange-400">
+            🔥 Warm-Up (5 min)
+          </p>
+          <ul className="space-y-1">
+            {day.warmUp.map((item, i) => (
+              <li key={i} className="text-sm text-orange-800 dark:text-orange-300">• {item}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {day.cardioNote && (
         <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800/50 dark:bg-yellow-950/30">

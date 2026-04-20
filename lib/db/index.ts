@@ -134,5 +134,10 @@ function initSchema(db: Database.Database) {
       assigned_at TEXT NOT NULL DEFAULT (datetime('now')),
       PRIMARY KEY (trainer_id, client_id)
     );
+
+    CREATE TABLE IF NOT EXISTS user_settings (
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      plan_start_date TEXT
+    );
   `);
 }
