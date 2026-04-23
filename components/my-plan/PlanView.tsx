@@ -26,44 +26,51 @@ const PHASE_REST: Record<Phase, number[]> = {
 };
 
 // ── Alarm ────────────────────────────────────────────────────────────────────
-function playAlarm() {
+// Safari requires AudioContext to be created/resumed during a user gesture.
+// We create it once on first tap and reuse it — never inside a useEffect.
+let sharedAudioCtx: AudioContext | null = null;
+
+function getAudioCtx(): AudioContext | null {
+  if (typeof window === "undefined") return null;
   try {
-    const ctx = new AudioContext();
-    const beep = (freq: number, start: number, duration: number) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.4, ctx.currentTime + start);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
-      osc.start(ctx.currentTime + start);
-      osc.stop(ctx.currentTime + start + duration);
-    };
-    beep(880,  0,    0.15);
-    beep(1100, 0.2,  0.15);
-    beep(1320, 0.4,  0.3);
-  } catch { /* SSR / old browser */ }
+    if (!sharedAudioCtx) sharedAudioCtx = new AudioContext();
+    if (sharedAudioCtx.state === "suspended") sharedAudioCtx.resume();
+    return sharedAudioCtx;
+  } catch { return null; }
+}
+
+function playTone(ctx: AudioContext, freq: number, start: number, duration: number, volume = 0.4) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.type = "sine";
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(volume, ctx.currentTime + start);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+  osc.start(ctx.currentTime + start);
+  osc.stop(ctx.currentTime + start + duration);
+}
+
+function playAlarm(ctx?: AudioContext | null) {
+  try {
+    const c = ctx ?? getAudioCtx();
+    if (!c) return;
+    playTone(c, 880,  0,    0.15);
+    playTone(c, 1100, 0.2,  0.15);
+    playTone(c, 1320, 0.4,  0.3);
+  } catch { /* old browser */ }
 }
 
 function playSuccess() {
   try {
-    const ctx = new AudioContext();
-    const beep = (freq: number, start: number, dur: number) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.type = "sine"; osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.35, ctx.currentTime + start);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
-      osc.start(ctx.currentTime + start); osc.stop(ctx.currentTime + start + dur);
-    };
-    beep(523, 0,    0.12);
-    beep(659, 0.14, 0.12);
-    beep(784, 0.28, 0.12);
-    beep(1047,0.42, 0.3);
-  } catch { /* SSR / old browser */ }
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    playTone(ctx, 523,  0,    0.12, 0.35);
+    playTone(ctx, 659,  0.14, 0.12, 0.35);
+    playTone(ctx, 784,  0.28, 0.12, 0.35);
+    playTone(ctx, 1047, 0.42, 0.3,  0.35);
+  } catch { /* old browser */ }
 }
 
 // ── Rest Timer ───────────────────────────────────────────────────────────────
@@ -73,6 +80,7 @@ function RestTimer({ phase }: { phase: Phase }) {
   const [remaining, setRemaining] = useState<number | null>(null);
   const [done, setDone] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
   const isRunning = remaining !== null && remaining > 0;
 
   const clear = useCallback(() => {
@@ -80,6 +88,8 @@ function RestTimer({ phase }: { phase: Phase }) {
   }, []);
 
   const start = useCallback((secs: number) => {
+    // Warm up AudioContext during user gesture so Safari allows playback later
+    audioCtxRef.current = getAudioCtx();
     clear(); setDone(false); setRemaining(secs);
     intervalRef.current = setInterval(() => {
       setRemaining((r) => (r === null || r <= 1 ? 0 : r - 1));
@@ -89,7 +99,7 @@ function RestTimer({ phase }: { phase: Phase }) {
   const stop = useCallback(() => { clear(); setRemaining(null); setDone(false); }, [clear]);
 
   useEffect(() => {
-    if (remaining === 0 && !done) { clear(); setDone(true); playAlarm(); }
+    if (remaining === 0 && !done) { clear(); setDone(true); playAlarm(audioCtxRef.current); }
   }, [remaining, done, clear]);
 
   useEffect(() => () => clear(), [clear]);

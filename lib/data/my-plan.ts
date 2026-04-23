@@ -28,21 +28,25 @@ export const PHASES: Record<Phase, { label: string; weeks: string; rpe: string; 
 };
 
 // Per-phase weights for each exercise key
+// All weights snapped to available Bowflex equipment:
+//   KB 840: 8 / 12 / 20 / 25 / 35 / 40 lb (max 40 lb)
+//   DB 552: 5 / 7.5 / 10 / 12.5 / 15 / 17.5 / 20 / 22.5 / 25 / 30 / 35 / 40 / 45 / 50 / 52.5 lb
+// KB phases capped at 40 lb compensate with added reps or tempo progression.
 const weights: Record<string, Record<Phase, { sets: string; reps: string; start: string; target: string }>> = {
   "incline-db-press": {
     1: { sets: "3", reps: "10", start: "20 lb each", target: "30 lb" },
-    2: { sets: "3", reps: "10", start: "30 lb each", target: "37.5 lb" },
-    3: { sets: "4", reps: "10", start: "35 lb each", target: "45 lb" },
+    2: { sets: "3", reps: "10", start: "30 lb each", target: "35 lb" },
+    3: { sets: "4", reps: "10", start: "40 lb each", target: "45 lb" },
   },
   "flat-db-press": {
     1: { sets: "3", reps: "10", start: "25 lb each", target: "35 lb" },
-    2: { sets: "3", reps: "12", start: "35 lb each", target: "42.5 lb" },
-    3: { sets: "4", reps: "10", start: "42.5 lb each", target: "50 lb" },
+    2: { sets: "3", reps: "12", start: "35 lb each", target: "40 lb" },
+    3: { sets: "4", reps: "10", start: "40 lb each", target: "50 lb" },
   },
   "db-shoulder-press": {
     1: { sets: "3", reps: "10", start: "15 lb each", target: "22.5 lb" },
-    2: { sets: "3", reps: "12", start: "22.5 lb each", target: "27.5 lb" },
-    3: { sets: "4", reps: "10", start: "27.5 lb each", target: "32.5 lb" },
+    2: { sets: "3", reps: "12", start: "22.5 lb each", target: "30 lb" },
+    3: { sets: "4", reps: "10", start: "30 lb each", target: "35 lb" },
   },
   "lateral-raises": {
     1: { sets: "2", reps: "12", start: "10 lb each", target: "12.5 lb" },
@@ -50,24 +54,24 @@ const weights: Record<string, Record<Phase, { sets: string; reps: string; start:
     3: { sets: "3", reps: "12", start: "15 lb each", target: "20 lb" },
   },
   "overhead-tricep-ext": {
-    1: { sets: "3", reps: "12", start: "20 lb (single DB)", target: "27.5 lb" },
-    2: { sets: "3", reps: "12", start: "27.5 lb", target: "35 lb" },
+    1: { sets: "3", reps: "12", start: "20 lb (single DB)", target: "30 lb" },
+    2: { sets: "3", reps: "12", start: "30 lb", target: "35 lb" },
     3: { sets: "4", reps: "10", start: "35 lb", target: "40 lb" },
   },
   "goblet-squat": {
-    1: { sets: "3", reps: "12", start: "30 lb KB", target: "45 lb" },
-    2: { sets: "3", reps: "12", start: "45 lb KB", target: "55 lb" },
-    3: { sets: "4", reps: "10", start: "55 lb KB", target: "65 lb" },
+    1: { sets: "3", reps: "12", start: "25 lb KB", target: "35 lb" },
+    2: { sets: "3", reps: "12", start: "35 lb KB", target: "40 lb" },
+    3: { sets: "4", reps: "12", start: "40 lb KB", target: "40 lb KB, 3-sec eccentric" },
   },
   "bulgarian-split-squat": {
     1: { sets: "3", reps: "8 each", start: "15 lb DBs", target: "20 lb" },
-    2: { sets: "3", reps: "10 each", start: "20 lb DBs", target: "27.5 lb" },
-    3: { sets: "3", reps: "12 each", start: "27.5 lb DBs", target: "32.5 lb" },
+    2: { sets: "3", reps: "10 each", start: "20 lb DBs", target: "30 lb" },
+    3: { sets: "3", reps: "12 each", start: "30 lb DBs", target: "35 lb" },
   },
   "kb-swing": {
     1: { sets: "3", reps: "15", start: "25 lb KB", target: "35 lb" },
-    2: { sets: "4", reps: "15", start: "35 lb KB", target: "50 lb" },
-    3: { sets: "4", reps: "20", start: "50 lb KB", target: "60 lb" },
+    2: { sets: "4", reps: "15", start: "35 lb KB", target: "40 lb" },
+    3: { sets: "4", reps: "20", start: "40 lb KB", target: "40 lb KB, explosive hip drive" },
   },
   "calf-raises": {
     1: { sets: "3", reps: "15", start: "Bodyweight", target: "Hold 15 lb DB" },
@@ -90,14 +94,14 @@ const weights: Record<string, Record<Phase, { sets: string; reps: string; start:
     3: { sets: "3", reps: "15 each side", start: "Heavy band", target: "Heavy band" },
   },
   "chest-supported-row": {
-    1: { sets: "3", reps: "10", start: "20 lb each", target: "27.5 lb" },
-    2: { sets: "3", reps: "12", start: "27.5 lb each", target: "32.5 lb" },
-    3: { sets: "4", reps: "10", start: "32.5 lb each", target: "37.5 lb" },
+    1: { sets: "3", reps: "10", start: "20 lb each", target: "30 lb" },
+    2: { sets: "3", reps: "12", start: "30 lb each", target: "35 lb" },
+    3: { sets: "4", reps: "10", start: "35 lb each", target: "40 lb" },
   },
   "single-arm-row": {
-    1: { sets: "3", reps: "10 each", start: "25 lb", target: "32.5 lb" },
-    2: { sets: "3", reps: "12 each", start: "32.5 lb", target: "37.5 lb" },
-    3: { sets: "4", reps: "10 each", start: "37.5 lb", target: "42.5 lb" },
+    1: { sets: "3", reps: "10 each", start: "25 lb", target: "30 lb" },
+    2: { sets: "3", reps: "12 each", start: "30 lb", target: "40 lb" },
+    3: { sets: "4", reps: "10 each", start: "40 lb", target: "45 lb" },
   },
   "band-pull-ups": {
     1: { sets: "3", reps: "3–5 reps", start: "Heaviest band", target: "5 reps" },
@@ -105,7 +109,7 @@ const weights: Record<string, Record<Phase, { sets: string; reps: string; start:
     3: { sets: "3", reps: "6–10 reps", start: "Light band / negatives", target: "Unassisted" },
   },
   "wall-lean-lateral": {
-    1: { sets: "2", reps: "12 each", start: "8 lb", target: "10 lb" },
+    1: { sets: "2", reps: "12 each", start: "7.5 lb", target: "10 lb" },
     2: { sets: "3", reps: "12 each", start: "10 lb", target: "12.5 lb" },
     3: { sets: "3", reps: "15 each", start: "12.5 lb", target: "15 lb" },
   },
@@ -121,18 +125,18 @@ const weights: Record<string, Record<Phase, { sets: string; reps: string; start:
   },
   "romanian-deadlift": {
     1: { sets: "3", reps: "10", start: "25 lb each", target: "35 lb" },
-    2: { sets: "3", reps: "12", start: "35 lb each", target: "42.5 lb" },
-    3: { sets: "4", reps: "10", start: "42.5 lb each", target: "50 lb" },
+    2: { sets: "3", reps: "12", start: "35 lb each", target: "40 lb" },
+    3: { sets: "4", reps: "10", start: "40 lb each", target: "50 lb" },
   },
   "kb-sumo-deadlift": {
-    1: { sets: "3", reps: "10", start: "40 lb KB", target: "50 lb" },
-    2: { sets: "3", reps: "12", start: "50 lb KB", target: "60 lb" },
-    3: { sets: "4", reps: "10", start: "60 lb KB", target: "70 lb" },
+    1: { sets: "3", reps: "10", start: "40 lb KB", target: "40 lb KB" },
+    2: { sets: "3", reps: "12", start: "40 lb KB", target: "40 lb KB" },
+    3: { sets: "4", reps: "10", start: "40 lb KB", target: "40 lb KB, 3-sec eccentric" },
   },
   "reverse-lunge": {
     1: { sets: "3", reps: "8 each", start: "15 lb DBs", target: "20 lb" },
-    2: { sets: "3", reps: "10 each", start: "20 lb DBs", target: "27.5 lb" },
-    3: { sets: "3", reps: "12 each", start: "27.5 lb DBs", target: "32.5 lb" },
+    2: { sets: "3", reps: "10 each", start: "20 lb DBs", target: "30 lb" },
+    3: { sets: "3", reps: "12 each", start: "30 lb DBs", target: "35 lb" },
   },
   "sissy-squat": {
     1: { sets: "2", reps: "8", start: "Bodyweight", target: "Deeper range" },
