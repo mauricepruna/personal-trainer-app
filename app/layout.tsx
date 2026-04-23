@@ -10,6 +10,14 @@ export const metadata: Metadata = {
   title: "Personal Trainer",
   description: "Your personal training companion — track workouts, exercises, and progress",
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Personal Trainer",
+  },
+  icons: {
+    apple: "/icons/icon-192x192.png",
+  },
 };
 
 export const viewport: Viewport = {
