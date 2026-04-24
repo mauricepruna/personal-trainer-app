@@ -26,8 +26,10 @@ const PHASE_REST: Record<Phase, number[]> = {
 };
 
 // ── Alarm ────────────────────────────────────────────────────────────────────
-// Safari requires AudioContext to be created/resumed during a user gesture.
-// We create it once on first tap and reuse it — never inside a useEffect.
+// iOS Safari suspends AudioContext outside user gestures and won't resume it
+// programmatically. The fix: pre-schedule alarm tones on the Web Audio timeline
+// during the user gesture (Start button tap), using absolute ctx.currentTime
+// offsets. The internal clock fires them regardless of JS callback timing.
 let sharedAudioCtx: AudioContext | null = null;
 
 function getAudioCtx(): AudioContext | null {
@@ -39,37 +41,51 @@ function getAudioCtx(): AudioContext | null {
   } catch { return null; }
 }
 
-function playTone(ctx: AudioContext, freq: number, start: number, duration: number, volume = 0.4) {
+// Returns the OscillatorNode so callers can cancel early.
+function scheduleTone(
+  ctx: AudioContext,
+  freq: number,
+  atTime: number,
+  duration: number,
+  volume = 0.4,
+): OscillatorNode {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.connect(gain);
   gain.connect(ctx.destination);
   osc.type = "sine";
   osc.frequency.value = freq;
-  gain.gain.setValueAtTime(volume, ctx.currentTime + start);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
-  osc.start(ctx.currentTime + start);
-  osc.stop(ctx.currentTime + start + duration);
+  gain.gain.setValueAtTime(volume, atTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, atTime + duration);
+  osc.start(atTime);
+  osc.stop(atTime + duration);
+  return osc;
 }
 
-function playAlarm(ctx?: AudioContext | null) {
-  try {
-    const c = ctx ?? getAudioCtx();
-    if (!c) return;
-    playTone(c, 880,  0,    0.15);
-    playTone(c, 1100, 0.2,  0.15);
-    playTone(c, 1320, 0.4,  0.3);
-  } catch { /* old browser */ }
+// Schedule alarm tones `delaySecs` seconds from now. Returns nodes to cancel.
+function scheduleAlarm(ctx: AudioContext, delaySecs: number): OscillatorNode[] {
+  const t = ctx.currentTime + delaySecs;
+  return [
+    scheduleTone(ctx, 880,  t,        0.15),
+    scheduleTone(ctx, 1100, t + 0.2,  0.15),
+    scheduleTone(ctx, 1320, t + 0.4,  0.3),
+  ];
+}
+
+// Immediate playback — for non-timer use or desktop fallback.
+function playAlarmNow(ctx: AudioContext) {
+  scheduleAlarm(ctx, 0);
 }
 
 function playSuccess() {
   try {
     const ctx = getAudioCtx();
     if (!ctx) return;
-    playTone(ctx, 523,  0,    0.12, 0.35);
-    playTone(ctx, 659,  0.14, 0.12, 0.35);
-    playTone(ctx, 784,  0.28, 0.12, 0.35);
-    playTone(ctx, 1047, 0.42, 0.3,  0.35);
+    const t = ctx.currentTime;
+    scheduleTone(ctx, 523,  t,        0.12, 0.35);
+    scheduleTone(ctx, 659,  t + 0.14, 0.12, 0.35);
+    scheduleTone(ctx, 784,  t + 0.28, 0.12, 0.35);
+    scheduleTone(ctx, 1047, t + 0.42, 0.3,  0.35);
   } catch { /* old browser */ }
 }
 
@@ -80,29 +96,51 @@ function RestTimer({ phase }: { phase: Phase }) {
   const [remaining, setRemaining] = useState<number | null>(null);
   const [done, setDone] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
+  const scheduledNodesRef = useRef<OscillatorNode[]>([]);
   const isRunning = remaining !== null && remaining > 0;
+
+  const cancelScheduledAlarm = useCallback(() => {
+    scheduledNodesRef.current.forEach((n) => { try { n.stop(); } catch {} });
+    scheduledNodesRef.current = [];
+  }, []);
 
   const clear = useCallback(() => {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
   }, []);
 
   const start = useCallback((secs: number) => {
-    // Warm up AudioContext during user gesture so Safari allows playback later
-    audioCtxRef.current = getAudioCtx();
+    cancelScheduledAlarm();
+    // Pre-schedule alarm on the Web Audio timeline during this user gesture.
+    // iOS Safari won't resume a suspended AudioContext from a timer callback,
+    // but tones already scheduled on the timeline will fire correctly.
+    const ctx = getAudioCtx();
+    if (ctx) scheduledNodesRef.current = scheduleAlarm(ctx, secs);
     clear(); setDone(false); setRemaining(secs);
     intervalRef.current = setInterval(() => {
       setRemaining((r) => (r === null || r <= 1 ? 0 : r - 1));
     }, 1000);
-  }, [clear]);
+  }, [clear, cancelScheduledAlarm]);
 
-  const stop = useCallback(() => { clear(); setRemaining(null); setDone(false); }, [clear]);
+  const stop = useCallback(() => {
+    cancelScheduledAlarm();
+    clear();
+    setRemaining(null);
+    setDone(false);
+  }, [clear, cancelScheduledAlarm]);
 
   useEffect(() => {
-    if (remaining === 0 && !done) { clear(); setDone(true); playAlarm(audioCtxRef.current); }
+    if (remaining === 0 && !done) {
+      clear();
+      setDone(true);
+      // Pre-scheduled tones handle iOS. For desktop/non-iOS, fire immediately
+      // as a fallback in case scheduling drifted.
+      const ctx = getAudioCtx();
+      if (ctx && scheduledNodesRef.current.length === 0) playAlarmNow(ctx);
+      scheduledNodesRef.current = [];
+    }
   }, [remaining, done, clear]);
 
-  useEffect(() => () => clear(), [clear]);
+  useEffect(() => () => { clear(); cancelScheduledAlarm(); }, [clear, cancelScheduledAlarm]);
 
   const progress = remaining !== null && seconds > 0 ? remaining / seconds : 1;
   const circumference = 2 * Math.PI * 26;
