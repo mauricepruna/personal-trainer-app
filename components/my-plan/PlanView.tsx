@@ -90,6 +90,25 @@ function playSuccess() {
 }
 
 // ── Rest Timer ───────────────────────────────────────────────────────────────
+const TIMER_STORAGE_KEY = "rest-timer";
+
+function saveTimerState(endTime: number, secs: number) {
+  try { localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify({ endTime, secs })); } catch {}
+}
+function clearTimerState() {
+  try { localStorage.removeItem(TIMER_STORAGE_KEY); } catch {}
+}
+function loadTimerState(): { endTime: number; secs: number } | null {
+  try {
+    const raw = localStorage.getItem(TIMER_STORAGE_KEY);
+    if (!raw) return null;
+    const { endTime, secs } = JSON.parse(raw);
+    if (typeof endTime !== "number" || typeof secs !== "number") return null;
+    if (endTime <= Date.now()) { clearTimerState(); return null; }
+    return { endTime, secs };
+  } catch { return null; }
+}
+
 function RestTimer({ phase }: { phase: Phase }) {
   const presets = PHASE_REST[phase];
   const [seconds, setSeconds] = useState<number>(presets[0]);
@@ -108,6 +127,7 @@ function RestTimer({ phase }: { phase: Phase }) {
   const clear = useCallback(() => {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
     endTimeRef.current = null;
+    clearTimerState();
   }, []);
 
   const tick = useCallback(() => {
@@ -127,6 +147,7 @@ function RestTimer({ phase }: { phase: Phase }) {
     setDone(false);
     setRemaining(secs);
     endTimeRef.current = Date.now() + secs * 1000;
+    saveTimerState(endTimeRef.current, secs);
     // Tick every 500ms so the display re-syncs quickly after the tab resumes.
     intervalRef.current = setInterval(tick, 500);
   }, [clear, cancelScheduledAlarm, tick]);
@@ -137,6 +158,18 @@ function RestTimer({ phase }: { phase: Phase }) {
     setRemaining(null);
     setDone(false);
   }, [clear, cancelScheduledAlarm]);
+
+  // Restore timer state after navigation (component remount).
+  useEffect(() => {
+    const saved = loadTimerState();
+    if (!saved) return;
+    const r = Math.round((saved.endTime - Date.now()) / 1000);
+    endTimeRef.current = saved.endTime;
+    setSeconds(saved.secs);
+    setRemaining(r > 0 ? r : 0);
+    intervalRef.current = setInterval(tick, 500);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Re-sync immediately when the tab becomes visible again.
   useEffect(() => {
@@ -157,7 +190,11 @@ function RestTimer({ phase }: { phase: Phase }) {
     }
   }, [remaining, done, clear]);
 
-  useEffect(() => () => { clear(); cancelScheduledAlarm(); }, [clear, cancelScheduledAlarm]);
+  // On unmount: stop the interval but keep localStorage so we can restore on remount.
+  useEffect(() => () => {
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    cancelScheduledAlarm();
+  }, [cancelScheduledAlarm]);
 
   const progress = remaining !== null && seconds > 0 ? remaining / seconds : 1;
   const circumference = 2 * Math.PI * 26;
