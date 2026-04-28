@@ -1,136 +1,84 @@
-# Personal Trainer App — Claude Code Context
+# CLAUDE.md
 
-## Project Overview
-PWA (Progressive Web App) personal training app. Works on iOS, Android, and desktop from a single codebase. No App Store required — install via browser "Add to Home Screen".
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Tech Stack
-- **Frontend:** Next.js 14 (App Router), TypeScript, Tailwind CSS
-- **Backend:** Supabase (PostgreSQL + Auth + Storage + Realtime)
-- **Charts:** Recharts or Chart.js
-- **PWA:** next-pwa (service worker, offline support, installable)
-- **State:** Zustand or React Query (TanStack)
+## Commands
+
+```bash
+npm run dev           # dev server on localhost:3000
+npm run dev:network   # dev server exposed on 0.0.0.0:3000 (for mobile testing)
+npm run lint          # ESLint via next lint
+npm run build         # production build (verifies TS + lint)
+```
+
+No test suite is configured.
+
+## Architecture
+
+### Tech Stack (actual — not what old docs say)
+
+- **Next.js 14** App Router, TypeScript strict, Tailwind CSS
+- **Database:** SQLite via `better-sqlite3` — file at `data/app.db`, created automatically on first run
+- **Auth:** JWT in an httpOnly cookie (`auth-session`), signed with `jose`. No Supabase.
 - **Forms:** React Hook Form + Zod
+- **Charts:** Recharts
+- **State:** Zustand (client)
+- **PWA:** next-pwa (service worker, manifest)
+- **i18n:** client-side only, `en`/`es` dictionaries in `lib/i18n/dictionaries/`
 
-## Project Structure (target)
+### Request / Data Flow
+
 ```
-app/
-├── (auth)/
-│   ├── login/
-│   └── signup/
-├── (app)/
-│   ├── dashboard/
-│   ├── exercises/          # Exercise library
-│   ├── workouts/           # Workout builder & log
-│   ├── calendar/           # Schedule sessions
-│   ├── log/                # Daily log (weight + exercises)
-│   ├── running/            # Running plans & log
-│   ├── plan-generator/     # Generate plan by equipment
-│   ├── progress/           # Charts & analytics
-│   └── clients/            # Trainer: manage clients
-├── api/                    # API routes (server actions)
-└── layout.tsx
-
-components/
-├── ui/                     # Shared UI components
-├── exercises/
-├── workouts/
-├── calendar/
-├── charts/
-└── body-map/               # SVG muscle group visualizer
-
-lib/
-├── supabase/               # Supabase client (browser + server)
-├── hooks/                  # Custom React hooks
-└── utils/
-
-public/
-├── manifest.json           # PWA manifest
-└── icons/                  # App icons (all sizes)
+RSC page → lib/db/queries/<domain>.ts   (reads, server-side)
+         → lib/actions/<domain>.ts       (mutations, "use server")
+           ↓
+         lib/db/index.ts (getDb singleton) → data/app.db
 ```
 
-## Database Schema (Supabase)
-```sql
--- Users / profiles
-profiles (id uuid PK, name text, role text CHECK (role IN ('user','trainer')), created_at timestamptz)
+- **Pages** (`app/(app)/*/page.tsx`) are Server Components — they call query helpers directly.
+- **Mutations** go through Server Actions in `lib/actions/`. Every action calls `getSession()` first and redirects to `/login` if unauthenticated.
+- **Components** under `components/<domain>/` are client components that receive data as props and call Server Actions for mutations.
 
--- Equipment
-equipment_types (id uuid PK, name text, icon text)
-user_equipment (user_id uuid, equipment_id uuid)
+### Auth
 
--- Exercises
-exercises (id uuid PK, name text, muscle_groups text[], equipment_id uuid, instructions text, video_url text)
+- `lib/auth/session.ts` — `createSession`, `getSession`, `deleteSession`. JWT expires in 30 days.
+- `lib/auth/actions.ts` — `loginAction`, `signupAction`, `logoutAction` (Server Actions).
+- Route guard: `app/(app)/layout.tsx` calls `getSession()` and redirects to `/login` on failure.
+- `JWT_SECRET` env var controls signing key (defaults to a dev placeholder if unset).
 
--- Workouts
-workouts (id uuid PK, user_id uuid, name text, created_at timestamptz)
-workout_exercises (id uuid PK, workout_id uuid, exercise_id uuid, sets int, reps int, weight_kg float, rest_sec int, order_index int)
+### Database
 
--- Sessions (calendar)
-sessions (id uuid PK, user_id uuid, workout_id uuid, scheduled_at timestamptz, completed_at timestamptz, notes text)
+- Schema is defined inline in `lib/db/index.ts` (`initSchema`) — `CREATE TABLE IF NOT EXISTS` on every cold start. No migration files are used at runtime.
+- `muscle_groups` column on `exercises` is stored as a JSON string (`TEXT`), not an array.
+- `user_settings` table holds per-user plan start date.
 
--- Daily log
-weight_log (id uuid PK, user_id uuid, date date, weight_kg float)
-exercise_log (id uuid PK, user_id uuid, date date, exercise_id uuid, sets int, reps int, weight_kg float)
+### My Plan (Hardcoded Program)
 
--- Running plans
-running_plans (id uuid PK, name text, goal_distance_km float, weeks int, level text)
-running_sessions (id uuid PK, plan_id uuid, week int, day int, type text, distance_km float, notes text)
-running_log (id uuid PK, user_id uuid, date date, distance_km float, duration_sec int, pace_min_km float)
+`lib/data/my-plan.ts` contains a static 12-week, 3-phase strength program (Push/Pull/Lower/Cardio split). It is NOT stored in the database — it is a data file exported as `getPlanForPhase(phase)`. Exercise images are served from `public/exercise-images/<exercise-key>/` where the key is kebab-case (e.g. `incline-db-press`).
 
--- Client management
-trainer_clients (trainer_id uuid, client_id uuid, assigned_at timestamptz)
-```
+### i18n
 
-## Feature Roadmap (GitHub Issues)
-| # | Feature | Priority |
-|---|---------|----------|
-| #1 | PWA scaffold: Next.js + Supabase + auth | 🔴 P0 |
-| #2 | Exercise library | 🔴 P0 |
-| #3 | Workout builder & tracking | 🔴 P0 |
-| #7 | Calendario de entrenamientos | 🟠 P1 |
-| #8 | Log diario: ejercicios y peso corporal | 🟠 P1 |
-| #9 | Generador de planes según equipo | 🟠 P1 |
-| #10 | Planes de running por distancia | 🟠 P1 |
-| #5 | Progress tracking & analytics | 🟡 P2 |
-| #4 | Client management (trainer view) | 🟡 P2 |
-| #6 | Android (native) — optional future | ⚪ P3 |
-
-## UX Notes
-- Muscle group visualization: SVG body map highlighting targeted muscles per exercise
-- Equipment profiles: users save multiple profiles (Home, Gym, Traveling)
-- Running log: distance, time, pace (min/km), RPE (1-10)
-- Mobile-first design — optimized for phone use in the gym
-- Dark mode support from day 1
+- `LocaleProvider` in `lib/i18n/context.tsx` wraps the entire app (in `app/layout.tsx`).
+- Use `useTranslation()` hook in client components to get `{ t, locale, setLocale }`.
+- Dictionaries: `lib/i18n/dictionaries/en.json` and `es.json`.
+- Server Components cannot use `useTranslation()` — pass translated strings as props if needed.
 
 ## Development Rules
-- **TypeScript strict mode** always
-- **Server Components by default** — use `"use client"` only when needed
-- **Supabase calls** go through `lib/supabase/` helpers, never raw in components
-- **No hardcoded strings** — i18n-ready from day 1 (en/es)
-- **Responsive:** mobile-first, works on tablet/desktop too
 
-## Key Dependencies
-```json
-{
-  "@supabase/supabase-js": "^2",
-  "@supabase/ssr": "^0",
-  "next-pwa": "^5",
-  "recharts": "^2",
-  "react-hook-form": "^7",
-  "zod": "^3",
-  "zustand": "^4",
-  "tailwindcss": "^3"
-}
-```
+- **Server Components by default** — `"use client"` only when hooks or browser APIs are needed.
+- **DB access** only through `lib/db/` — never call `getDb()` directly in components or pages.
+- **All mutations** must go through Server Actions (`"use server"`), never raw fetch calls to API routes.
+- **No hardcoded user-facing strings** — add keys to both `en.json` and `es.json`.
 
 ## Environment Variables
+
 ```env
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
+JWT_SECRET=          # Required in production. Dev falls back to an insecure placeholder.
 ```
 
 ## GitHub
+
 - Repo: https://github.com/mauricepruna/personal-trainer-app (private)
-- Project board: https://github.com/users/mauricepruna/projects/2
+- Issue board: https://github.com/users/mauricepruna/projects/4
 - Main branch: `main`
 - Feature branches: `feature/<issue-number>-<short-name>`

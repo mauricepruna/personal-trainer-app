@@ -97,6 +97,7 @@ function RestTimer({ phase }: { phase: Phase }) {
   const [done, setDone] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scheduledNodesRef = useRef<OscillatorNode[]>([]);
+  const endTimeRef = useRef<number | null>(null);
   const isRunning = remaining !== null && remaining > 0;
 
   const cancelScheduledAlarm = useCallback(() => {
@@ -106,6 +107,13 @@ function RestTimer({ phase }: { phase: Phase }) {
 
   const clear = useCallback(() => {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    endTimeRef.current = null;
+  }, []);
+
+  const tick = useCallback(() => {
+    if (endTimeRef.current === null) return;
+    const r = Math.round((endTimeRef.current - Date.now()) / 1000);
+    setRemaining(r <= 0 ? 0 : r);
   }, []);
 
   const start = useCallback((secs: number) => {
@@ -115,11 +123,13 @@ function RestTimer({ phase }: { phase: Phase }) {
     // but tones already scheduled on the timeline will fire correctly.
     const ctx = getAudioCtx();
     if (ctx) scheduledNodesRef.current = scheduleAlarm(ctx, secs);
-    clear(); setDone(false); setRemaining(secs);
-    intervalRef.current = setInterval(() => {
-      setRemaining((r) => (r === null || r <= 1 ? 0 : r - 1));
-    }, 1000);
-  }, [clear, cancelScheduledAlarm]);
+    clear();
+    setDone(false);
+    setRemaining(secs);
+    endTimeRef.current = Date.now() + secs * 1000;
+    // Tick every 500ms so the display re-syncs quickly after the tab resumes.
+    intervalRef.current = setInterval(tick, 500);
+  }, [clear, cancelScheduledAlarm, tick]);
 
   const stop = useCallback(() => {
     cancelScheduledAlarm();
@@ -127,6 +137,13 @@ function RestTimer({ phase }: { phase: Phase }) {
     setRemaining(null);
     setDone(false);
   }, [clear, cancelScheduledAlarm]);
+
+  // Re-sync immediately when the tab becomes visible again.
+  useEffect(() => {
+    const onVisible = () => { if (endTimeRef.current !== null) tick(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [tick]);
 
   useEffect(() => {
     if (remaining === 0 && !done) {
