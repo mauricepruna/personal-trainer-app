@@ -49,3 +49,5 @@ public/workbox-*.js.map
 /data/
 
 /docs/
+prod-app.db-wal
+prod-app*

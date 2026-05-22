@@ -148,6 +148,21 @@ const weights: Record<string, Record<Phase, { sets: string; reps: string; start:
     2: { sets: "2", reps: "15", start: "Bodyweight", target: "Bodyweight" },
     3: { sets: "3", reps: "15", start: "Bodyweight", target: "Bodyweight" },
   },
+  "s-bar-rdl": {
+    1: { sets: "3", reps: "10", start: "—", target: "—" },
+    2: { sets: "3", reps: "12", start: "60 lb total", target: "80 lb total" },
+    3: { sets: "4", reps: "10", start: "80 lb total", target: "100 lb total" },
+  },
+  "s-bar-sumo-dl": {
+    1: { sets: "3", reps: "10", start: "—", target: "—" },
+    2: { sets: "3", reps: "12", start: "70 lb total", target: "90 lb total" },
+    3: { sets: "4", reps: "10", start: "90 lb total", target: "105 lb total (cap)" },
+  },
+  "ab-rollout": {
+    1: { sets: "3", reps: "10 each side", start: "Bodyweight", target: "Slower tempo" },
+    2: { sets: "3", reps: "5–8", start: "Kneeling, short range", target: "Kneeling, full range × 8" },
+    3: { sets: "3", reps: "8–10", start: "Kneeling, full range", target: "Standing negatives" },
+  },
 };
 
 const tips: Record<string, string> = {
@@ -174,6 +189,9 @@ const tips: Record<string, string> = {
   "reverse-lunge": "Step back (not forward) — easier on knees",
   "sissy-squat": "Lean back, core braced, knees track forward",
   "glute-bridges": "Squeeze glutes hard at top for 1 sec",
+  "s-bar-rdl": "Slow 3-sec descent, neutral spine, soft knees — same cues as DB RDL, just heavier",
+  "s-bar-sumo-dl": "Wide stance, toes out, drive through mid-foot — hinge then squat to grip",
+  "ab-rollout": "Kneeling. Hollow position — never let lower back arch. Stop the roll when you feel the back, not the abs",
 };
 
 const warmUps: Record<string, string[]> = {
@@ -258,6 +276,9 @@ function getExerciseName(key: string): string {
     "sissy-squat": "Sissy Squat",
     "glute-bridges": "Glute Bridges",
     "push-ups": "Push-ups",
+    "s-bar-rdl": "S-Bar Romanian Deadlift",
+    "s-bar-sumo-dl": "S-Bar Sumo Deadlift",
+    "ab-rollout": "Ab Rollout",
   };
   return names[key] ?? key;
 }
@@ -286,9 +307,20 @@ const muscleMap: Record<string, string[]> = {
   "reverse-lunge": ["quads", "glutes"],
   "sissy-squat": ["quads"],
   "glute-bridges": ["glutes"],
+  "s-bar-rdl": ["hamstrings", "glutes"],
+  "s-bar-sumo-dl": ["glutes", "hamstrings"],
+  "ab-rollout": ["core"],
 };
 
 export function getPlanForPhase(phase: Phase): WorkoutDay[] {
+  const cardioKeys = phase === 1
+    ? ["dead-bugs", "plank", "pallof-press"]
+    : ["ab-rollout", "plank", "pallof-press"];
+
+  const lowerBKeys = phase === 1
+    ? ["romanian-deadlift", "kb-sumo-deadlift", "reverse-lunge", "sissy-squat", "glute-bridges"]
+    : ["s-bar-rdl", "s-bar-sumo-dl", "reverse-lunge", "sissy-squat", "glute-bridges"];
+
   return [
     buildDay("upper-a", "Upper A — Push", "Tuesday", "push",
       ["incline-db-press", "flat-db-press", "db-shoulder-press", "lateral-raises", "overhead-tricep-ext"],
@@ -297,7 +329,7 @@ export function getPlanForPhase(phase: Phase): WorkoutDay[] {
       ["goblet-squat", "bulgarian-split-squat", "kb-swing", "calf-raises"],
       muscleMap, phase),
     buildDay("cardio", "Cardio + Core", "Thursday", "cardio",
-      ["dead-bugs", "plank", "pallof-press"],
+      cardioKeys,
       muscleMap, phase,
       phase === 1 ? "20 min treadmill walk @ 3.0–3.5 mph, incline 2–3%"
         : phase === 2 ? "Intervals: 2 min walk / 1 min jog × 8 rounds"
@@ -306,7 +338,7 @@ export function getPlanForPhase(phase: Phase): WorkoutDay[] {
       ["chest-supported-row", "single-arm-row", "band-pull-ups", "wall-lean-lateral", "incline-db-curl", "db-preacher-curl"],
       muscleMap, phase),
     buildDay("lower-b", "Lower B — Hamstrings & Posterior", "Saturday", "lower",
-      ["romanian-deadlift", "kb-sumo-deadlift", "reverse-lunge", "sissy-squat", "glute-bridges"],
+      lowerBKeys,
       muscleMap, phase),
     buildDay("easy-cardio", "Easy Cardio", "Sunday", "cardio",
       [],
