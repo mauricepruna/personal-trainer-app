@@ -525,6 +525,12 @@ function DayView({
         </div>
       )}
 
+      {day.optionalNote && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800/50 dark:bg-blue-950/30">
+          <p className="text-sm font-medium text-blue-800 dark:text-blue-300">{day.optionalNote}</p>
+        </div>
+      )}
+
       {day.exercises.length > 0 ? (
         <div className="space-y-4">
           {day.exercises.map((ex, i) => (

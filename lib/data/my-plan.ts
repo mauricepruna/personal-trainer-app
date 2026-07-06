@@ -18,6 +18,7 @@ export interface WorkoutDay {
   type: "push" | "pull" | "lower" | "cardio";
   exercises: PlannedExercise[];
   cardioNote?: string;
+  optionalNote?: string;
   warmUp?: string[];
 }
 
@@ -58,6 +59,11 @@ const weights: Record<string, Record<Phase, { sets: string; reps: string; start:
     2: { sets: "3", reps: "12", start: "30 lb", target: "35 lb" },
     3: { sets: "4", reps: "10", start: "35 lb", target: "40 lb" },
   },
+  "push-ups": {
+    1: { sets: "2", reps: "6-10", start: "Incline or knee push-ups", target: "Full push-ups x10" },
+    2: { sets: "3", reps: "8-12", start: "Full push-ups", target: "Controlled full push-ups x12" },
+    3: { sets: "3", reps: "10-15", start: "Full push-ups", target: "Feet-elevated or slow eccentric" },
+  },
   "goblet-squat": {
     1: { sets: "3", reps: "12", start: "25 lb KB", target: "35 lb" },
     2: { sets: "3", reps: "12", start: "35 lb KB", target: "40 lb" },
@@ -74,9 +80,9 @@ const weights: Record<string, Record<Phase, { sets: string; reps: string; start:
     3: { sets: "4", reps: "20", start: "40 lb KB", target: "40 lb KB, explosive hip drive" },
   },
   "calf-raises": {
-    1: { sets: "3", reps: "15", start: "Bodyweight", target: "Hold 15 lb DB" },
-    2: { sets: "3", reps: "15", start: "15 lb DB", target: "25 lb" },
-    3: { sets: "4", reps: "15", start: "25 lb DB", target: "35 lb" },
+    1: { sets: "3", reps: "12–15 each", start: "Bodyweight, hand support", target: "Hold 15 lb DB" },
+    2: { sets: "3", reps: "12–15 each", start: "15 lb DB", target: "25 lb, slow 3-sec lower" },
+    3: { sets: "4", reps: "12–15 each", start: "25 lb DB", target: "35 lb, 1-sec top pause" },
   },
   "dead-bugs": {
     1: { sets: "3", reps: "10 each side", start: "Bodyweight", target: "Slower tempo" },
@@ -124,9 +130,9 @@ const weights: Record<string, Record<Phase, { sets: string; reps: string; start:
     3: { sets: "3", reps: "10", start: "15 lb", target: "20 lb" },
   },
   "romanian-deadlift": {
-    1: { sets: "3", reps: "10", start: "25 lb each", target: "35 lb" },
-    2: { sets: "3", reps: "12", start: "35 lb each", target: "40 lb" },
-    3: { sets: "4", reps: "10", start: "40 lb each", target: "50 lb" },
+    1: { sets: "3", reps: "10", start: "25 lb each or light S-bar", target: "35 lb each" },
+    2: { sets: "3", reps: "12", start: "35 lb each or S-bar", target: "40 lb each" },
+    3: { sets: "4", reps: "10", start: "40 lb each or S-bar", target: "50 lb each" },
   },
   "kb-sumo-deadlift": {
     1: { sets: "3", reps: "10", start: "40 lb KB", target: "40 lb KB" },
@@ -144,9 +150,9 @@ const weights: Record<string, Record<Phase, { sets: string; reps: string; start:
     3: { sets: "3", reps: "12", start: "Hold light DB", target: "Add weight" },
   },
   "glute-bridges": {
-    1: { sets: "2", reps: "12", start: "Bodyweight (warm-up)", target: "Bodyweight" },
-    2: { sets: "2", reps: "15", start: "Bodyweight", target: "Bodyweight" },
-    3: { sets: "3", reps: "15", start: "Bodyweight", target: "Bodyweight" },
+    1: { sets: "2", reps: "12", start: "Bodyweight or light S-bar", target: "Controlled loaded reps" },
+    2: { sets: "3", reps: "12", start: "Light S-bar", target: "Moderate S-bar" },
+    3: { sets: "3", reps: "15", start: "Moderate S-bar", target: "1-sec top pause" },
   },
   "s-bar-rdl": {
     1: { sets: "3", reps: "10", start: "—", target: "—" },
@@ -171,14 +177,15 @@ const tips: Record<string, string> = {
   "db-shoulder-press": "Tuck elbows at bottom, flare on the way up to protect shoulder",
   "lateral-raises": "Phase 2+: do full reps to failure, then go 20% heavier for half reps",
   "overhead-tricep-ext": "Keep elbows in, only forearms move",
+  "push-ups": "Keep ribs down and elbows about 45 degrees from your torso",
   "goblet-squat": "Push knees out at bottom, chest tall throughout",
   "bulgarian-split-squat": "Wide stance = more glutes, narrow + knee forward = more quads",
   "kb-swing": "It's a hip hinge, NOT a squat — power from hips",
-  "calf-raises": "Full stretch at bottom, 1-sec pause at top",
+  "calf-raises": "Use support for balance, move through the full ankle range",
   "dead-bugs": "Flatten lower back to floor before moving limbs",
   "plank": "Body forms a straight line — no sagging hips",
   "pallof-press": "Brace core hard before pressing — resist rotation",
-  "chest-supported-row": "Wide elbows for upper back, squeeze shoulder blades",
+  "chest-supported-row": "Chest down on the incline bench, row toward your hips, squeeze shoulder blades",
   "single-arm-row": "Sweep arm back toward hip for lat activation",
   "band-pull-ups": "Full dead hang at bottom, chin over bar at top",
   "wall-lean-lateral": "Lean away from wall — makes the bottom range harder",
@@ -188,7 +195,7 @@ const tips: Record<string, string> = {
   "kb-sumo-deadlift": "Wide stance, toes out, hinge then squat to grip",
   "reverse-lunge": "Step back (not forward) — easier on knees",
   "sissy-squat": "Lean back, core braced, knees track forward",
-  "glute-bridges": "Squeeze glutes hard at top for 1 sec",
+  "glute-bridges": "Squeeze glutes hard at top for 1 sec; avoid arching the low back",
   "s-bar-rdl": "Slow 3-sec descent, neutral spine, soft knees — same cues as DB RDL, just heavier",
   "s-bar-sumo-dl": "Wide stance, toes out, drive through mid-foot — hinge then squat to grip",
   "ab-rollout": "Kneeling. Hollow position — never let lower back arch. Stop the roll when you feel the back, not the abs",
@@ -198,21 +205,23 @@ const warmUps: Record<string, string[]> = {
   "upper-a": [
     "Arm circles — 20 each direction",
     "Band pull-aparts — 15 reps",
-    "Push-ups from knees — 2×8 (work toward full push-ups)",
+    "Incline push-ups — 2x8 easy reps",
   ],
   "lower-a": [
     "Bodyweight squats — 2×15",
     "Hip circles — 10 each leg",
+    "Banded lateral walks — 10 each direction",
     "Glute bridges — 2×12",
   ],
   "upper-b": [
+    "Arm circles — 20 each direction",
     "Band pull-aparts — 15 reps",
     "Dead hangs from pull-up bar — 3×10–15 sec",
-    "Scapular retractions (hang + shrug shoulders down) — 2×8",
   ],
   "lower-b": [
     "Hip hinges (bodyweight) — 2×10",
     "Leg swings — 10 each leg",
+    "Banded lateral walks — 10 each direction",
     "Glute bridges — 2×12",
   ],
 };
@@ -225,7 +234,8 @@ function buildDay(
   keys: string[],
   muscles: Record<string, string[]>,
   phase: Phase,
-  cardioNote?: string
+  cardioNote?: string,
+  optionalNote?: string
 ): WorkoutDay {
   return {
     id,
@@ -233,6 +243,7 @@ function buildDay(
     dayOfWeek,
     type,
     cardioNote,
+    optionalNote,
     warmUp: warmUps[id],
     exercises: keys.map((key) => {
       const w = weights[key]?.[phase] ?? { sets: "3", reps: "10", start: "—", target: "—" };
@@ -260,7 +271,7 @@ function getExerciseName(key: string): string {
     "goblet-squat": "Goblet Squat",
     "bulgarian-split-squat": "Bulgarian Split Squat",
     "kb-swing": "KB Swing",
-    "calf-raises": "Calf Raises",
+    "calf-raises": "Supported Single-Leg Calf Raise",
     "dead-bugs": "Dead Bugs",
     "plank": "Plank",
     "pallof-press": "Pallof Press",
@@ -274,7 +285,7 @@ function getExerciseName(key: string): string {
     "kb-sumo-deadlift": "KB Sumo Deadlift",
     "reverse-lunge": "Reverse Lunge",
     "sissy-squat": "Sissy Squat",
-    "glute-bridges": "Glute Bridges",
+    "glute-bridges": "Loaded Glute Bridge",
     "push-ups": "Push-ups",
     "s-bar-rdl": "S-Bar Romanian Deadlift",
     "s-bar-sumo-dl": "S-Bar Sumo Deadlift",
@@ -289,6 +300,7 @@ const muscleMap: Record<string, string[]> = {
   "db-shoulder-press": ["shoulders", "triceps"],
   "lateral-raises": ["shoulders"],
   "overhead-tricep-ext": ["triceps"],
+  "push-ups": ["chest", "triceps"],
   "goblet-squat": ["quads", "glutes"],
   "bulgarian-split-squat": ["quads", "glutes", "hamstrings"],
   "kb-swing": ["glutes", "hamstrings", "core"],
@@ -323,7 +335,7 @@ export function getPlanForPhase(phase: Phase): WorkoutDay[] {
 
   return [
     buildDay("upper-a", "Upper A — Push", "Tuesday", "push",
-      ["incline-db-press", "flat-db-press", "db-shoulder-press", "lateral-raises", "overhead-tricep-ext"],
+      ["incline-db-press", "flat-db-press", "push-ups", "db-shoulder-press", "lateral-raises", "overhead-tricep-ext"],
       muscleMap, phase),
     buildDay("lower-a", "Lower A — Quads & Glutes", "Wednesday", "lower",
       ["goblet-squat", "bulgarian-split-squat", "kb-swing", "calf-raises"],
