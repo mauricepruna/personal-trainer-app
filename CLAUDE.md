@@ -67,18 +67,18 @@ RSC page → lib/db/queries/<domain>.ts   (reads, server-side)
 
 ### My Plan (Hardcoded Program)
 
-`lib/data/my-plan.ts` contains a static 12-week, 3-phase strength program (Push/Pull/Lower/Cardio split). It is **not** stored in the database — it is a data file exported as `getPlanForPhase(phase)`.
+`lib/data/my-plan.ts` contains a static 12-week, 3-phase strength program — a 3-day Push/Pull/Legs split (Mon/Wed/Fri). It is **not** stored in the database — it is a data file exported as `getPlanForPhase(phase)`. Running is handled by a separate app, so no cardio days are scheduled here.
 
-**Phase derivation** (in `lib/actions/plan.ts`):
+**Phase derivation** (in `lib/actions/plan.ts`), based on 3 sessions/week:
 ```ts
-currentPhase = Math.min(3, Math.floor(completedCount / 24) + 1)
-currentWeek  = Math.min(12, Math.floor(completedCount / 6) + 1)
+currentPhase = Math.min(3, Math.floor(completedCount / 12) + 1)
+currentWeek  = Math.min(12, Math.floor(completedCount / 3) + 1)
 ```
-Phase advances on completed session count, not calendar date.
+Phase advances on completed session count, not calendar date. Sessions are scheduled on offsets `[0, 2, 4]` days from the start of each week (`DAY_OFFSETS` in `lib/actions/plan.ts`) — i.e. Mon/Wed/Fri if the plan start date is a Monday.
 
 **Exercise keys** are kebab-case strings (e.g. `incline-db-press`). Exercise images are served from `public/exercise-images/<key>/`. When adding a new exercise key, create a matching folder under `public/exercise-images/` or the UI will render an empty image slot.
 
-**Phase-aware exercise substitution:** Phases 2 and 3 substitute s-bar variants on Lower B and ab rollout on Cardio+Core. This is done via `lowerBKeys` / `cardioKeys` arrays branched by phase inside `getPlanForPhase`.
+**Legs day is KB-heavy by design** — it merges what used to be two separate lower-body days, so most of its exercises (`kb-deadlift`, `kb-reverse-lunge`, `kb-swing`, `goblet-squat`) use the kettlebell rather than dumbbells. The user owns a single adjustable KB (Bowflex 840, 8–40 lb) — never write an exercise or weight table assuming two kettlebells.
 
 ### i18n
 

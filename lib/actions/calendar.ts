@@ -61,14 +61,11 @@ export async function updateSessionTimeAction(sessionId: string, time: string) {
   return { success: true };
 }
 
-// Maps plan day IDs to the workout names created by the ICS seeder
+// Maps plan day IDs to the workout names created by setPlanStartDateAction
 const DAY_TO_WORKOUT: Record<string, string> = {
-  "upper-a":    "Upper A - Push Focus",
-  "lower-a":    "Lower A - Quad & Glute",
-  "cardio":     "Cardio + Core",
-  "upper-b":    "Upper B - Pull Focus",
-  "lower-b":    "Lower B - Hamstring & Posterior",
-  "easy-cardio":"Easy Cardio",
+  "push": "Push",
+  "pull": "Pull",
+  "legs": "Legs",
 };
 
 export async function markPlanDayCompleteAction(dayId: string) {

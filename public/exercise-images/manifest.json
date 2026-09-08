@@ -258,22 +258,23 @@
     ]
   },
   "chest-supported-row": {
-    "name": "Bent Over Two-Dumbbell Row",
-    "db_id": "Bent_Over_Two-Dumbbell_Row",
+    "name": "Dumbbell Incline Row",
+    "db_id": "Dumbbell_Incline_Row",
     "equipment": "dumbbell",
     "primaryMuscles": [
       "middle back"
     ],
     "secondaryMuscles": [
       "biceps",
+      "forearms",
       "lats",
       "shoulders"
     ],
     "instructions": [
-      "With a dumbbell in each hand (palms facing your torso), bend your knees slightly and bring your torso forward by bending at the waist; as you bend make sure to keep your back straight until it is almost parallel to the floor. Tip: Make sure that you keep the head up. The weights should hang directly in front of you as your arms hang perpendicular to the floor and your torso. This is your starting position.",
-      "While keeping the torso stationary, lift the dumbbells to your side (as you breathe out), keeping the elbows close to the body (do not exert any force with the forearm other than holding the weights). On the top contracted position, squeeze the back muscles and hold for a second.",
-      "Slowly lower the weight again to the starting position as you inhale.",
-      "Repeat for the recommended amount of repetitions."
+      "Using a neutral grip, lean into an incline bench.",
+      "Take a dumbbell in each hand with a neutral grip, beginning with the arms straight. This will be your starting position.",
+      "Retract the shoulder blades and flex the elbows to row the dumbbells to your side.",
+      "Pause at the top of the motion, and then return to the starting position."
     ],
     "images": [
       "chest-supported-row/0.jpg",
@@ -528,6 +529,79 @@
     "images": [
       "glute-bridges/0.jpg",
       "glute-bridges/1.jpg"
+    ]
+  },
+  "kb-one-arm-swing-clean": {
+    "name": "One-Arm Kettlebell Clean",
+    "db_id": "One-Arm_Kettlebell_Clean",
+    "equipment": "kettlebells",
+    "note": "App treats this as a swing-into-clean (hike pass, then snap to rack) — free-exercise-db shows the floor-start clean variant instead of the dynamic swing version. Same rack-position finish, single KB.",
+    "primaryMuscles": [
+      "hamstrings"
+    ],
+    "secondaryMuscles": [
+      "glutes",
+      "lower back",
+      "shoulders",
+      "traps"
+    ],
+    "instructions": [
+      "Hike the kettlebell back between your legs like starting a swing.",
+      "Snap your hips forward and pull the kettlebell up close to your body, letting your elbow bend to guide it into the rack position on your shoulder.",
+      "Lower back under control and repeat, or let it swing back into the next rep."
+    ],
+    "images": [
+      "kb-one-arm-swing-clean/0.jpg",
+      "kb-one-arm-swing-clean/1.jpg"
+    ]
+  },
+  "kb-deadlift": {
+    "name": "Kettlebell Dead Clean",
+    "db_id": "Kettlebell_Dead_Clean",
+    "equipment": "kettlebells",
+    "note": "App treats this as a two-leg KB Romanian deadlift (hinge, no shrug/clean at the top) — free-exercise-db has no bilateral standing KB RDL photo, but this one starts from the identical hip-hinge position with a single kettlebell.",
+    "primaryMuscles": [
+      "hamstrings"
+    ],
+    "secondaryMuscles": [
+      "calves",
+      "glutes",
+      "lower back",
+      "quadriceps",
+      "traps"
+    ],
+    "instructions": [
+      "Place kettlebell between your feet. To get in the starting position, push your butt back and look straight ahead.",
+      "Hinge at the hips holding the kettlebell with both hands, keeping the back straight and knees soft.",
+      "Squeeze your glutes to return to standing tall."
+    ],
+    "images": [
+      "kb-deadlift/0.jpg",
+      "kb-deadlift/1.jpg"
+    ]
+  },
+  "kb-reverse-lunge": {
+    "name": "Dumbbell Rear Lunge",
+    "db_id": "Dumbbell_Rear_Lunge",
+    "equipment": "dumbbell",
+    "note": "Closest available stock photo — free-exercise-db has no KB goblet-hold lunge. Step direction (rear/reverse) matches; the app's tip describes holding the weight at the chest (goblet) instead of at the sides as shown.",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "calves",
+      "glutes",
+      "hamstrings"
+    ],
+    "instructions": [
+      "Stand with your torso upright holding two dumbbells in your hands by your sides. This will be your starting position.",
+      "Step backward with your right leg around two feet or so from the left foot and lower your upper body down, while keeping the torso upright and maintaining balance. Inhale as you go down. Tip: As in the other exercises, do not allow your knee to go forward beyond your toes as you come down, as this will put undue stress on the knee joint. Make sure that you keep your front shin perpendicular to the ground.",
+      "Push up and go back to the starting position as you exhale.",
+      "Now repeat with the opposite leg."
+    ],
+    "images": [
+      "kb-reverse-lunge/0.jpg",
+      "kb-reverse-lunge/1.jpg"
     ]
   }
 }

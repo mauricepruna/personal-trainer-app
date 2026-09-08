@@ -13,10 +13,9 @@ const PHASE_COLORS: Record<Phase, { bg: string; text: string; border: string; ba
 };
 
 const DAY_TYPE_COLORS: Record<WorkoutDay["type"], string> = {
-  push:   "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
-  pull:   "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-  lower:  "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
-  cardio: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300",
+  push:  "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+  pull:  "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  lower: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
 };
 
 const PHASE_REST: Record<Phase, number[]> = {
@@ -263,7 +262,7 @@ function RestTimer({ phase }: { phase: Phase }) {
 
 const WEEK_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const DAY_ID_INDEX: Record<string, number> = {
-  "upper-a": 0, "lower-a": 1, "cardio": 2, "upper-b": 3, "lower-b": 4, "easy-cardio": 5,
+  "push": 0, "pull": 2, "legs": 4,
 };
 
 function computedDayOfWeek(startDate: string | null | undefined, dayId: string): string {
@@ -276,7 +275,7 @@ function computedDayOfWeek(startDate: string | null | undefined, dayId: string):
 
 // ── PlanView ─────────────────────────────────────────────────────────────────
 export function PlanView({ status }: { status?: PlanStatus }) {
-  const defaultDay = status?.todayDayId ?? status?.nextDayId ?? "upper-a";
+  const defaultDay = status?.todayDayId ?? status?.nextDayId ?? "push";
   const defaultPhase = status?.currentPhase ?? 1;
   const [phase, setPhase] = useState<Phase>(defaultPhase);
   const [activeDay, setActiveDay] = useState<string>(defaultDay);

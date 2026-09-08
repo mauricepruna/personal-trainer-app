@@ -13,15 +13,15 @@ async function requireSession() {
 }
 
 const PLAN_DAYS: { name: string }[] = [
-  { name: "Upper A - Push Focus" },
-  { name: "Lower A - Quad & Glute" },
-  { name: "Cardio + Core" },
-  { name: "Upper B - Pull Focus" },
-  { name: "Lower B - Hamstring & Posterior" },
-  { name: "Easy Cardio" },
+  { name: "Push" },
+  { name: "Pull" },
+  { name: "Legs" },
 ];
 
-const TOTAL_SESSIONS = 72; // 12 weeks × 6 days
+// Sessions land on Mon/Wed/Fri of each week (offsets from the week's start date)
+const DAY_OFFSETS = [0, 2, 4];
+
+const TOTAL_SESSIONS = 36; // 12 weeks × 3 days
 
 function localDate(base: string, daysOffset: number): string {
   const [y, m, d] = base.split("-").map(Number);
@@ -49,12 +49,9 @@ function ensurePlanWorkouts(userId: string): Record<string, string> {
 }
 
 const WORKOUT_TO_DAY: Record<string, string> = {
-  "Upper A - Push Focus":           "upper-a",
-  "Lower A - Quad & Glute":          "lower-a",
-  "Cardio + Core":                   "cardio",
-  "Upper B - Pull Focus":            "upper-b",
-  "Lower B - Hamstring & Posterior": "lower-b",
-  "Easy Cardio":                     "easy-cardio",
+  "Push": "push",
+  "Pull": "pull",
+  "Legs": "legs",
 };
 
 export interface PlanStatus {
@@ -95,8 +92,8 @@ export async function getPlanStatus(): Promise<PlanStatus> {
 
   const today = new Date().toISOString().split("T")[0];
   const completedCount = rows.filter((r) => r.completed_at !== null).length;
-  const currentWeek = Math.min(12, Math.floor(completedCount / 6) + 1);
-  const currentPhase = Math.min(3, Math.floor(completedCount / 24) + 1) as 1 | 2 | 3;
+  const currentWeek = Math.min(12, Math.floor(completedCount / 3) + 1);
+  const currentPhase = Math.min(3, Math.floor(completedCount / 12) + 1) as 1 | 2 | 3;
 
   const todayRow = rows.find((r) => r.scheduled_at.startsWith(today) && !r.completed_at);
   const todayDayId = todayRow ? (WORKOUT_TO_DAY[todayRow.workout_name] ?? null) : null;
@@ -154,8 +151,8 @@ export async function setPlanStartDateAction(formData: FormData) {
 
   db.transaction(() => {
     for (let i = 0; i < TOTAL_SESSIONS; i++) {
-      const { name } = PLAN_DAYS[i % 6];
-      const dayOffset = Math.floor(i / 6) * 7 + (i % 6);
+      const { name } = PLAN_DAYS[i % 3];
+      const dayOffset = Math.floor(i / 3) * 7 + DAY_OFFSETS[i % 3];
       insertSession.run(randomUUID(), session.userId, workoutIds[name], localDate(startDate, dayOffset));
     }
   })();
@@ -182,7 +179,7 @@ export async function reschedulePlanAction(formData: FormData) {
   const idList = Object.values(workoutIds);
   const placeholders = idList.map(() => "?").join(",");
 
-  // Count completed plan sessions to know where in the 72-session sequence we are
+  // Count completed plan sessions to know where in the 36-session sequence we are
   const { count: completedCount } = db.prepare(`
     SELECT COUNT(*) as count FROM sessions
     WHERE user_id = ? AND workout_id IN (${placeholders}) AND completed_at IS NOT NULL
@@ -204,9 +201,9 @@ export async function reschedulePlanAction(formData: FormData) {
 
   db.transaction(() => {
     for (let j = 0; j < remaining; j++) {
-      const dayIndex = (completedCount + j) % 6;
+      const dayIndex = (completedCount + j) % 3;
       const { name } = PLAN_DAYS[dayIndex];
-      const dayOffset = Math.floor(j / 6) * 7 + (j % 6);
+      const dayOffset = Math.floor(j / 3) * 7 + DAY_OFFSETS[j % 3];
       insertSession.run(randomUUID(), session.userId, workoutIds[name], localDate(fromDate, dayOffset));
     }
   })();
