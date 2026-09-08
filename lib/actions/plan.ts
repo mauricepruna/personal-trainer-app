@@ -54,6 +54,17 @@ const WORKOUT_TO_DAY: Record<string, string> = {
   "Legs": "legs",
 };
 
+// Workout names from the pre-migration 6-day split. A plan reset purges their
+// sessions too, since deployments made before this migration leave them behind.
+const LEGACY_PLAN_WORKOUT_NAMES = [
+  "Upper A - Push Focus",
+  "Lower A - Quad & Glute",
+  "Cardio + Core",
+  "Upper B - Pull Focus",
+  "Lower B - Hamstring & Posterior",
+  "Easy Cardio",
+];
+
 export interface PlanStatus {
   startDate: string | null;
   todayDayId: string | null;
@@ -144,6 +155,13 @@ export async function setPlanStartDateAction(formData: FormData) {
   const placeholders = Object.values(workoutIds).map(() => "?").join(",");
   db.prepare(`DELETE FROM sessions WHERE user_id = ? AND workout_id IN (${placeholders})`)
     .run(session.userId, ...Object.values(workoutIds));
+
+  const legacyPlaceholders = LEGACY_PLAN_WORKOUT_NAMES.map(() => "?").join(",");
+  db.prepare(`
+    DELETE FROM sessions
+    WHERE user_id = ?
+    AND workout_id IN (SELECT id FROM workouts WHERE user_id = ? AND name IN (${legacyPlaceholders}))
+  `).run(session.userId, session.userId, ...LEGACY_PLAN_WORKOUT_NAMES);
 
   const insertSession = db.prepare(
     "INSERT INTO sessions (id, user_id, workout_id, scheduled_at) VALUES (?, ?, ?, ?)"
